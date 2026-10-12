@@ -68,12 +68,13 @@ import {
   uploadPhoto,
   initializeStarter,
 } from "./data.js";
+import { deletePhotoBatch } from "./delete-batch.js";
 import "./style.css";
 const css = document.createElement("link");
 css.rel = "stylesheet";
 css.href = new URL("./app.css", import.meta.url).href;
 document.head.append(css);
-document.title = "晴日 · 相册";
+document.title = "时光 · 相册";
 const filters = [
   ["all", "所有照片", Images],
   ["favorites", "个人收藏", Heart],
@@ -694,11 +695,12 @@ function Viewer({
     </dialog>
   );
 }
-function ConfirmDelete({ photo, onCancel, onConfirm, busy }) {
+function ConfirmDelete({ photos, onCancel, onConfirm, busy, progress }) {
   const ref = useRef();
   useEffect(() => {
     ref.current.showModal();
   }, []);
+  const done = progress && !busy;
   return (
     <dialog
       className="confirm"
@@ -711,15 +713,58 @@ function ConfirmDelete({ photo, onCancel, onConfirm, busy }) {
       <div className="delete-symbol">
         <Trash2 size={25} />
       </div>
-      <h3>删除这张照片？</h3>
-      <p>「{photo.title}」及其评论会被永久删除。</p>
+      <h3>
+        {busy
+          ? "正在删除照片…"
+          : done
+            ? "删除处理完成"
+            : photos.length === 1
+              ? "删除这张照片？"
+              : `删除选中的 ${photos.length} 张照片？`}
+      </h3>
+      {!progress && (
+        <p>
+          {photos.length === 1 ? `「${photos[0].title}」` : "选中的照片"}
+          及其评论会被永久删除。
+        </p>
+      )}
+      {progress && (
+        <div className="delete-progress" role="status" aria-live="polite">
+          <progress
+            aria-label="删除进度"
+            value={progress.completed}
+            max={progress.total}
+          />
+          <p>
+            已处理 {progress.completed} / {progress.total} 张 ·{" "}
+            {Math.round((progress.completed / progress.total) * 100)}%
+          </p>
+          <p>
+            已删除 {progress.succeeded} 张
+            {progress.failed > 0 && `，失败 ${progress.failed} 张`}
+          </p>
+          {progress.failed > 0 && (
+            <p className="delete-error">
+              {progress.error}。未删除的照片会保留，可重试。
+            </p>
+          )}
+        </div>
+      )}
       <div className="confirm-actions">
         <button className="secondary" disabled={busy} onClick={onCancel}>
-          保留照片
+          {done ? "完成" : "取消"}
         </button>
-        <button className="danger" disabled={busy} onClick={onConfirm}>
-          {busy ? "正在删除…" : "删除照片"}
-        </button>
+        {(!done || progress.failed > 0) && (
+          <button className="danger" disabled={busy} onClick={onConfirm}>
+            {busy
+              ? "正在删除…"
+              : done
+                ? "重试失败项"
+                : photos.length === 1
+                  ? "删除照片"
+                  : "确认删除"}
+          </button>
+        )}
       </div>
     </dialog>
   );
@@ -856,6 +901,7 @@ function App() {
     [progress, setProgress] = useState(null),
     [toDelete, setToDelete] = useState(null),
     [deleting, setDeleting] = useState(false),
+    [deleteProgress, setDeleteProgress] = useState(null),
     [more, setMore] = useState(false),
     [drag, setDrag] = useState(false),
     [width, setWidth] = useState(900);
@@ -1081,17 +1127,42 @@ function App() {
     setSearch("");
     refresh();
   }
+  function requestDelete(rows) {
+    setDeleteProgress(null);
+    setToDelete(rows);
+  }
   async function confirmDelete() {
     if (deleting) return;
     setDeleting(true);
+    const pending = toDelete;
+    setDeleteProgress({
+      total: pending.length,
+      completed: 0,
+      succeeded: 0,
+      failed: 0,
+    });
     try {
-      await removePhoto(toDelete);
-      setPhotos((r) => r.filter((p) => p.id !== toDelete.id));
-      if (current === toDelete.id) close();
-      setToDelete(null);
-      notify("照片已删除");
-    } catch (e) {
-      notify(e.message);
+      const failures = await deletePhotoBatch(
+        pending,
+        removePhoto,
+        (photo, error, progress) => {
+          if (!error) {
+            setPhotos((rows) => rows.filter((p) => p.id !== photo.id));
+            setSelected((ids) => {
+              const next = new Set(ids);
+              next.delete(photo.id);
+              return next;
+            });
+            if (current === photo.id) close();
+          }
+          setDeleteProgress(progress);
+        },
+      );
+      setToDelete(failures);
+      if (pending.length === 1 && failures.length === 0) {
+        setToDelete(null);
+        notify("照片已删除");
+      }
     } finally {
       setDeleting(false);
     }
@@ -1145,7 +1216,7 @@ function App() {
             <Sun size={25} />
           </div>
           <div>
-            晴日<span>SUNLIT ALBUM</span>
+            时光<span>TIME ALBUM</span>
           </div>
           <IconButton
             className="mobile-only"
@@ -1358,6 +1429,16 @@ function App() {
                 <Folder size={16} />
                 加入分组
               </button>
+              <button
+                className="danger"
+                disabled={!selected.size || deleting}
+                onClick={() =>
+                  requestDelete(shown.filter((photo) => selected.has(photo.id)))
+                }
+              >
+                <Trash2 size={16} />
+                批量删除
+              </button>
             </div>
           )}
           <div ref={wall} className="photo-wall">
@@ -1531,7 +1612,7 @@ function App() {
             setId={changePhoto}
             onClose={close}
             onFavorite={toggle}
-            onDelete={setToDelete}
+            onDelete={(photo) => requestDelete([photo])}
             notify={notify}
             toast={toast}
             autoPlay={autoplay}
@@ -1555,7 +1636,8 @@ function App() {
         )}
         {toDelete && (
           <ConfirmDelete
-            photo={toDelete}
+            photos={toDelete}
+            progress={deleteProgress}
             busy={deleting}
             onCancel={() => setToDelete(null)}
             onConfirm={confirmDelete}

@@ -1685,3 +1685,21 @@ h1 {
   outline: none;
   cursor: pointer;
 }
+
+.selection-bar {
+  flex-wrap: wrap;
+}
+.selection-bar .danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.delete-progress progress {
+  width: 100%;
+  height: 10px;
+  accent-color: #dd5564;
+}
+.delete-progress .delete-error {
+  color: #b83e4f;
+  overflow-wrap: anywhere;
+}
