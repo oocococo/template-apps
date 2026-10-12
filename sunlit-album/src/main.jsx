@@ -1,6 +1,7 @@
 import React, {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   useMemo,
@@ -369,10 +370,12 @@ function Viewer({
     film = useRef(),
     dialog = useRef();
   const preview = usePreviewCache(photos, index, zoom);
-  useEffect(() => {
-    dialog.current.showModal();
-    return () => dialog.current?.close();
-  }, []);
+  useLayoutEffect(() => {
+    // Keep the dialog above its fullscreen host in the browser top layer.
+    const element = dialog.current;
+    element.showModal();
+    return () => element.close();
+  }, [fullscreen]);
   const step = useCallback(
     (delta) => {
       if (photos.length < 2) return;
@@ -802,6 +805,7 @@ function App() {
     [width, setWidth] = useState(900);
   const input = useRef(),
     wall = useRef(),
+    viewerHost = useRef(),
     ownsFullscreen = useRef(false),
     favoriteBusy = useRef(new Set()),
     initialized = useRef(false),
@@ -825,7 +829,7 @@ function App() {
       return;
     }
     try {
-      await document.documentElement.requestFullscreen();
+      await viewerHost.current.requestFullscreen();
       ownsFullscreen.current = true;
     } catch {
       notify("未能进入全屏，请点击全屏按钮重试");
@@ -1468,41 +1472,45 @@ function App() {
           e.target.value = "";
         }}
       />
-      {current && photos.some((p) => p.id === current) && (
-        <Viewer
-          photos={shown.some((p) => p.id === current) ? shown : photos}
-          id={current}
-          setId={changePhoto}
-          onClose={close}
-          onFavorite={toggle}
-          onDelete={setToDelete}
-          notify={notify}
-          toast={toast}
-          autoPlay={autoplay}
-          fullscreen={fullscreen}
-          enterFullscreen={enterFullscreen}
-          toggleFullscreen={toggleFullscreen}
-          onGroup={(p) => setGroupDialog({ ids: [p.id], initial: p.category })}
-        />
-      )}
-      {groupDialog && (
-        <GroupDialog
-          groups={groups}
-          ids={groupDialog.ids}
-          initial={groupDialog.initial}
-          onClose={() => setGroupDialog(null)}
-          onSave={groupSaved}
-          onCreated={(group) => setGroups((rows) => [...rows, group])}
-        />
-      )}
-      {toDelete && (
-        <ConfirmDelete
-          photo={toDelete}
-          busy={deleting}
-          onCancel={() => setToDelete(null)}
-          onConfirm={confirmDelete}
-        />
-      )}
+      <div ref={viewerHost} className="viewer-host">
+        {current && photos.some((p) => p.id === current) && (
+          <Viewer
+            photos={shown.some((p) => p.id === current) ? shown : photos}
+            id={current}
+            setId={changePhoto}
+            onClose={close}
+            onFavorite={toggle}
+            onDelete={setToDelete}
+            notify={notify}
+            toast={toast}
+            autoPlay={autoplay}
+            fullscreen={fullscreen}
+            enterFullscreen={enterFullscreen}
+            toggleFullscreen={toggleFullscreen}
+            onGroup={(p) =>
+              setGroupDialog({ ids: [p.id], initial: p.category })
+            }
+          />
+        )}
+        {groupDialog && (
+          <GroupDialog
+            groups={groups}
+            ids={groupDialog.ids}
+            initial={groupDialog.initial}
+            onClose={() => setGroupDialog(null)}
+            onSave={groupSaved}
+            onCreated={(group) => setGroups((rows) => [...rows, group])}
+          />
+        )}
+        {toDelete && (
+          <ConfirmDelete
+            photo={toDelete}
+            busy={deleting}
+            onCancel={() => setToDelete(null)}
+            onConfirm={confirmDelete}
+          />
+        )}
+      </div>
       {progress && (
         <div className="upload-progress" role="status">
           <div className="progress-icon">
