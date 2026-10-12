@@ -40,6 +40,19 @@ import {
   FolderPlus,
   CheckCircle2,
   Circle,
+  Camera,
+  Flower2,
+  Leaf,
+  Waves,
+  Plane,
+  Coffee,
+  Music,
+  Bike,
+  MapPin,
+  TreePine,
+  Rainbow,
+  Gift,
+  Compass,
 } from "lucide-react";
 import {
   files,
@@ -65,6 +78,30 @@ const filters = [
   ["all", "所有照片", Images],
   ["favorites", "个人收藏", Heart],
 ];
+const groupIcons = [
+  Sun,
+  Mountain,
+  PawPrint,
+  Camera,
+  Flower2,
+  Leaf,
+  Waves,
+  Plane,
+  Coffee,
+  Music,
+  Bike,
+  MapPin,
+  TreePine,
+  Rainbow,
+  Gift,
+  Compass,
+];
+function groupIcon(name) {
+  let hash = 2166136261;
+  for (const character of name)
+    hash = Math.imul(hash ^ character.codePointAt(0), 16777619);
+  return groupIcons[(hash >>> 0) % groupIcons.length];
+}
 const dateLabel = (v) =>
   new Date(v).toLocaleDateString("zh-CN", {
     year: "numeric",
@@ -1134,12 +1171,7 @@ function App() {
         <nav aria-label="照片分组">
           {groups.map((group) => {
             const key = "group:" + group.name;
-            const Icon =
-              group.name === "宠物"
-                ? PawPrint
-                : group.name === "风景"
-                  ? Mountain
-                  : Folder;
+            const Icon = groupIcon(group.name);
             return (
               <button
                 key={key}
