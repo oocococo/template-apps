@@ -454,7 +454,11 @@ function Viewer({
   return (
     <dialog
       ref={dialog}
-      className={"viewer " + (comments ? "with-comments" : "")}
+      className={
+        "viewer " +
+        (comments ? "with-comments " : "") +
+        (playing ? "is-playing" : "")
+      }
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -503,7 +507,10 @@ function Viewer({
               label={playing ? "暂停轮播" : "开始轮播"}
               active={playing}
               onClick={() => {
-                if (!playing) enterFullscreen();
+                if (!playing) {
+                  setZoom(false);
+                  enterFullscreen();
+                }
                 setPlaying((x) => !x);
                 setComments(false);
               }}
@@ -541,6 +548,18 @@ function Viewer({
         </header>
         <div
           className={"stage " + (zoom ? "zoomed" : "")}
+          role={playing ? "button" : undefined}
+          tabIndex={playing ? 0 : undefined}
+          aria-label={playing ? "暂停轮播" : undefined}
+          onClick={() => {
+            if (playing) setPlaying(false);
+          }}
+          onKeyDown={(e) => {
+            if (playing && (e.key === "Enter" || e.key === " ")) {
+              e.preventDefault();
+              setPlaying(false);
+            }
+          }}
           onPointerDown={(e) => {
             if (e.pointerType === "touch")
               touch.current = { x: e.clientX, y: e.clientY };

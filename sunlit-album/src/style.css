@@ -1669,3 +1669,19 @@ h1 {
     gap: 6px;
   }
 }
+
+.viewer.is-playing .viewer-header,
+.viewer.is-playing .viewer-footer,
+.viewer.is-playing .previous,
+.viewer.is-playing .next,
+.viewer.is-playing .photo-info {
+  display: none;
+}
+.viewer.is-playing .photo-frame {
+  width: 100%;
+  height: 100%;
+}
+.viewer.is-playing .stage {
+  outline: none;
+  cursor: pointer;
+}
