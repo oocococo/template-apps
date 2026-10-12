@@ -23,6 +23,7 @@ async function fixture(t) {
   await writeFile(path.join(directory, ".gitignore"), "node_modules/\ndist/\n");
   await writeFile(path.join(directory, "README.md"), "A complete source project\n");
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: "pipe" });
+  await writeFile(path.join(directory, "model.bin"), Buffer.alloc(2 * 1024 * 1024, 0xab));
   git("init", "-q"); git("add", ".");
   git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "Template fixture");
   return {root, directory, metadata, commit: git("rev-parse", "HEAD").trim()};
@@ -36,6 +37,7 @@ test("pack exports the selected commit, preserves files and adds actual source p
   assert.equal(strFromU8(zip["README.md"]), "A complete source project\n");
   assert.equal(strFromU8(zip[".gitignore"]), "node_modules/\ndist/\n");
   assert.equal(strFromU8(zip["src/config.json"]), '{"web":"__TIANA_WEB_ID_abc139fd__"}\n');
+  assert.deepEqual(Buffer.from(zip["model.bin"]), await readFile(path.join(f.directory, "model.bin")));
   const metadata = JSON.parse(strFromU8(zip["metadata.json"]));
   assert.equal(metadata.source.commit, f.commit);
   assert.equal(metadata.source.repository, "https://github.com/tianacloud/template-apps");

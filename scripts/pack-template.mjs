@@ -9,7 +9,7 @@ import { validateTemplateFiles } from "./validate-template.mjs";
 export async function packTemplate(root, templateName, sourceCommit = "HEAD") {
   if (!templateName || templateName === "." || templateName === ".." || /[/\\\0]/.test(templateName))
     throw new Error("Template name must identify one directory");
-  const git = args => execFileSync("git", args, { cwd: root, stdio: "pipe" });
+  const git = args => execFileSync("git", args, { cwd: root, stdio: "pipe", maxBuffer: 16 * 1024 * 1024 });
   const commit = git(["rev-parse", "--verify", `${sourceCommit}^{commit}`]).toString().trim();
   const prefix = `${templateName}/`;
   const tree = git(["ls-tree", "-r", "-z", commit, "--", templateName]).toString().split("\0").filter(Boolean);
