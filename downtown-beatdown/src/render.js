@@ -17,7 +17,9 @@ export class Renderer{
   const w=info.width*scale,h=info.height*scale;ctx.save();if(a.dead)ctx.globalAlpha=Math.max(0,1-a.time);
   ctx.fillStyle='#05081070';ctx.beginPath();ctx.ellipse(a.x,a.y+3,35+(a.kind==='taxman'?12:0),9,0,0,Math.PI*2);ctx.fill();
   if(a.action==='windup'){ctx.strokeStyle=a.special?'#e683ef':'#ff7859';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(a.x,a.y+3,a.special?235:56,a.special?62:17,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#ffbd85';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText('!',a.x,a.y-h-12);}
-  ctx.translate(a.x,a.y-a.z+8);ctx.scale(a.dir*(a.kind==='chad'?1:-1),1);
+  // Quiver's Sargent idle frames face left; his other included animations face right.
+  const facesLeft=a.kind==='taxman'||(a.kind==='sargent'&&key==='idle');
+  ctx.translate(a.x,a.y-a.z+8);ctx.scale(a.dir*(facesLeft?-1:1),1);
   if(a.invincible>0&&Math.floor(a.invincible*18)%2===0)ctx.globalAlpha*=.5;
   ctx.drawImage(img,-w/2,-h,w,h);ctx.restore();
   if(a.kind!=='chad'&&!a.dead&&a.hp<a.maxHp){ctx.fillStyle='#080b14';ctx.fillRect(a.x-25,a.y+16,50,4);ctx.fillStyle=a.kind==='taxman'?'#ce83ee':'#ff7354';ctx.fillRect(a.x-25,a.y+16,50*a.hp/a.maxHp,4);}
