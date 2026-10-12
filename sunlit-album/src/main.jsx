@@ -33,6 +33,8 @@ import {
   Maximize2,
   Minimize2,
   SlidersHorizontal,
+  Expand,
+  Shrink,
 } from "lucide-react";
 import {
   files,
@@ -343,6 +345,9 @@ function Viewer({
   notify,
   toast,
   autoPlay = false,
+  fullscreen,
+  enterFullscreen,
+  toggleFullscreen,
 }) {
   const index = Math.max(
       0,
@@ -374,13 +379,11 @@ function Viewer({
   useEffect(() => {
     setReady(false);
     setZoom(false);
-    film.current
-      ?.querySelector('[aria-current="true"]')
-      ?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
-      });
+    film.current?.querySelector('[aria-current="true"]')?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
   }, [id]);
   useEffect(() => {
     if (!playing || comments || zoom || !ready || photos.length < 2) return;
@@ -454,11 +457,18 @@ function Viewer({
               label={playing ? "暂停轮播" : "开始轮播"}
               active={playing}
               onClick={() => {
+                if (!playing) enterFullscreen();
                 setPlaying((x) => !x);
                 setComments(false);
               }}
             >
               {playing ? <Pause size={20} /> : <Play size={20} />}
+            </IconButton>
+            <IconButton
+              label={fullscreen ? "退出全屏" : "进入全屏"}
+              onClick={toggleFullscreen}
+            >
+              {fullscreen ? <Shrink size={20} /> : <Expand size={20} />}
             </IconButton>
             <IconButton label="下载原图" onClick={download}>
               <Download size={20} />
@@ -650,6 +660,7 @@ function App() {
     [toast, setToast] = useState(""),
     [current, setCurrent] = useState(null),
     [autoplay, setAutoplay] = useState(false),
+    [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement)),
     [sidebar, setSidebar] = useState(false),
     [density, setDensity] = useState(3),
     [progress, setProgress] = useState(null),
@@ -660,6 +671,7 @@ function App() {
     [width, setWidth] = useState(900);
   const input = useRef(),
     wall = useRef(),
+    ownsFullscreen = useRef(false),
     favoriteBusy = useRef(new Set()),
     initialized = useRef(false),
     request = useRef(0),
@@ -667,6 +679,40 @@ function App() {
   const notify = useCallback((msg) => {
     setToast(msg);
   }, []);
+  useEffect(() => {
+    const changed = () => {
+      setFullscreen(Boolean(document.fullscreenElement));
+      if (!document.fullscreenElement) ownsFullscreen.current = false;
+    };
+    document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
+  }, []);
+  const enterFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) return;
+    if (!document.fullscreenEnabled) {
+      notify("当前浏览器不支持系统全屏，已使用沉浸模式");
+      return;
+    }
+    try {
+      await document.documentElement.requestFullscreen();
+      ownsFullscreen.current = true;
+    } catch {
+      notify("未能进入全屏，请点击全屏按钮重试");
+    }
+  }, [notify]);
+  const toggleFullscreen = useCallback(async () => {
+    if (!document.fullscreenElement) return enterFullscreen();
+    try {
+      await document.exitFullscreen();
+    } catch {
+      notify("未能退出全屏，请重试");
+    }
+  }, [enterFullscreen, notify]);
+  useEffect(() => {
+    if (!current && fullscreen && ownsFullscreen.current) {
+      document.exitFullscreen().catch(() => notify("未能退出全屏，请重试"));
+    }
+  }, [current, fullscreen, notify]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(""), 4200);
@@ -732,11 +778,15 @@ function App() {
     addEventListener("hashchange", read);
     return () => removeEventListener("hashchange", read);
   }, []);
-  const open = useCallback((id, play = false) => {
-    setAutoplay(play);
-    location.hash = "photo/" + encodeURIComponent(id);
-    setCurrent(id);
-  }, []);
+  const open = useCallback(
+    (id, play = false) => {
+      if (play) enterFullscreen();
+      setAutoplay(play);
+      location.hash = "photo/" + encodeURIComponent(id);
+      setCurrent(id);
+    },
+    [enterFullscreen],
+  );
   const close = useCallback(() => {
     history.replaceState(null, "", location.pathname + location.search);
     setCurrent(null);
@@ -1189,6 +1239,9 @@ function App() {
           notify={notify}
           toast={toast}
           autoPlay={autoplay}
+          fullscreen={fullscreen}
+          enterFullscreen={enterFullscreen}
+          toggleFullscreen={toggleFullscreen}
         />
       )}
       {toDelete && (
