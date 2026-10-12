@@ -1,6 +1,6 @@
 # Neon Coast · 霓虹海岸
 
-A browser-native, single-player coastal driving game with cloud saves. An original coastal city with a detailed concept car, eight drivable vehicle types, palm-lined boulevards, traffic, rigged pedestrians, and synthesized driving audio. Licensed character, vehicle and surface assets ship with the application; see `licenses/ASSETS.md`.
+A browser-native, single-player coastal driving game with cloud saves. An original coastal city with detailed concept, sedan, crossover, pickup and van models, eight drivable vehicle types, palm-lined boulevards, traffic, rigged pedestrians, and synthesized driving audio. Licensed character, vehicle and surface assets ship with the application; see `licenses/ASSETS.md`.
 
 ## Play
 
@@ -28,13 +28,14 @@ Contract changes, rewards, vehicle purchases, and upgrades request a save; drivi
 6. Create a Tiana Web application with the fixed entry `assets/app.js` and the same SQLite and Git bindings. The build prints `TIANA_PROJECT_PARAMS` for these parameters.
 7. Preview using `tiana web serve WEB_ID --dir dist --port 4174`, or publish with `tiana web publish WEB_ID --dir dist --json`. Check the publication receipt and the currently served archive hash.
 
-The entry injects its own CSS and embeds its display font. The Tiana Bootstrap supplies the document, runtime, and authentication; the game is not a standalone static `index.html` application. The production entry is approximately 1.3 MB before compression; bundled models and textures add approximately 12 MB. The first load downloads these resources before enabling play.
+The entry injects its own CSS and embeds its display font. The Tiana Bootstrap supplies the document, runtime, and authentication; the game is not a standalone static `index.html` application. The production entry is approximately 1.3 MB before compression; bundled models and textures add approximately 11 MB. The first load downloads these resources before enabling play. Vehicle meshes are gzip-compressed and decoded with the browser’s native DecompressionStream.
 
 ## Customize
 
 - `src/world.js`: city layout, architecture palette, decorations, and contract routes.
 - `src/models.js`: procedural vehicle variants, vegetation, and static mesh batching.
 - `src/vehicle-assets.js`, `src/characters.js`: detailed vehicle and animated character loading.
+- `src/wheels.js`: separate steering and rolling pivots shared by player and traffic vehicles.
 - `src/physics.js`: oriented vehicle footprints, swept motion and contact sliding.
 - `src/state.js`: vehicles, prices, upgrades, and mission settlement.
 - `src/main.js`: game loop, driving, cameras, interface, maps, and persistence.
@@ -44,8 +45,8 @@ The entry injects its own CSS and embeds its display font. The Tiana Bootstrap s
 
 Rendering requires WebGL 2. Desktop keyboard play is the primary experience; use a browser with hardware acceleration. Mobile touch layout is supported, but frame rate depends on the device. Rendering and movement run locally; SQLite handles persistent progression.
 
-Run `npm test` for game economy and collision checks. Browser acceptance should additionally cover driving, entering/leaving the car, missions, garage purchases, cloud-save reload, disconnected writes, and mobile controls with a real Tiana preview.
+Run `npm test` for game economy, collision and wheel-axis checks. Browser acceptance should additionally cover driving, entering/leaving the car, missions, garage purchases, cloud-save reload, disconnected writes, and mobile controls with a real Tiana preview.
 
 ## Credits
 
-The Car Concept model is by Eric Chadwick / Darmstadt Graphics Group (CC BY 4.0); character assets are by Quaternius (CC0); asphalt and sky lighting assets are from Poly Haven (CC0). Sources, modifications and notices are in `licenses/ASSETS.md`. Original procedural meshes and synthesized audio are included in the source. Three.js and the Tiana SDK use their package licenses. Barlow Condensed is by Jeremy Tribby, distributed under the SIL Open Font License; see `licenses/Barlow-OFL.txt`.
+The Car Concept model is by Eric Chadwick / Darmstadt Graphics Group (CC BY 4.0); sedan, crossover, pickup and van models are by Innerscene (CC0); character assets are by Quaternius (CC0); asphalt and sky lighting assets are from Poly Haven (CC0). Sources, modifications and notices are in `licenses/ASSETS.md`. Original procedural meshes and synthesized audio are included in the source. Three.js and the Tiana SDK use their package licenses. Barlow Condensed is by Jeremy Tribby, distributed under the SIL Open Font License; see `licenses/Barlow-OFL.txt`.

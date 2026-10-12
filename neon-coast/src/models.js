@@ -1,5 +1,6 @@
 import * as T from "three";
 import { VEHICLES } from "./state.js";
+import { mountWheel } from "./wheels.js";
 import { detailedCar } from "./vehicle-assets.js";
 export { person } from "./characters.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -70,7 +71,8 @@ export function batchStatic(group) {
 }
 export function car(id = "comet", color) {
   const v = VEHICLES.find((v) => v.id === id);
-  if (id === "comet") return detailedCar(color || v.color);
+  if (["comet", "sedan", "suv", "pickup", "van"].includes(id))
+    return detailedCar(id, color || v.color);
   const g = new T.Group(),
     fixed = new T.Group();
   const paint = new T.MeshPhysicalMaterial({
@@ -438,9 +440,12 @@ export function car(id = "comet", color) {
       rim.rotation.y = Math.PI / 2;
       rim.position.x = side * 0.12;
       wheel.add(rim);
-      wheel.position.set(side * (w - 0.015), radius, z);
-      g.add(wheel);
-      wheels.push(wheel);
+      const steering = mountWheel(
+        wheel,
+        new T.Vector3(side * (w - 0.015), radius, z),
+      );
+      g.add(steering);
+      wheels.push(steering);
     }
   g.add(batchStatic(fixed));
   g.userData = {

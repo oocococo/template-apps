@@ -1,3 +1,4 @@
+import { rollWheels } from "./wheels.js";
 import * as T from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -759,10 +760,7 @@ function advance(dt) {
       -player.steering * player.speed * 0.0014,
       dt * 5,
     );
-    for (const w of playerCar.userData.wheels) {
-      w.rotation.x += (player.speed * dt) / playerCar.userData.radius;
-      if (w.position.z > 0) w.rotation.y = wheelAngle;
-    }
+    rollWheels(playerCar, player.speed * dt, wheelAngle);
     if (handbrake && Math.abs(player.speed) > 10) {
       const p = smoke[smokeIndex++ % smoke.length];
       p.life = 0.8;
@@ -774,7 +772,7 @@ function advance(dt) {
       p.mesh.visible = true;
     }
   } else {
-    const speed = (throttle ? 1 : brake ? -1 : 0) * 3.2;
+    const speed = (throttle ? 1 : brake ? -1 : 0) * 1.8;
     player.heading += steer * 2.4 * dt;
     const moved = moveBody(
       { ...player, hx: 0.32, hz: 0.32 },
@@ -787,7 +785,7 @@ function advance(dt) {
     player.z = moved.z;
     avatar.position.set(player.x, 0, player.z);
     avatar.rotation.y = player.heading;
-    animatePerson(avatar, dt, speed ? "walk" : "idle");
+    animatePerson(avatar, dt, speed ? "walk" : "idle", speed);
   }
   if (Math.abs(player.speed) > 0.1) dirty = true;
   for (const p of smoke)
@@ -847,6 +845,11 @@ function updateMission(dt) {
         delta.z * dt * 15,
         T.MathUtils.clamp(turn, -dt, dt),
         solidBodies(police),
+      );
+      rollWheels(
+        police,
+        moved.hit ? 0 : dt * 15,
+        T.MathUtils.clamp(turn, -0.4, 0.4),
       );
       police.position.set(moved.x, 0, moved.z);
       police.rotation.y = moved.heading;

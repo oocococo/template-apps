@@ -25,7 +25,6 @@ export function person() {
   });
   const visual = new T.Group();
   visual.add(model);
-  visual.rotation.y = Math.PI;
   group.add(visual);
   const mixer = new T.AnimationMixer(model),
     actions = {};
@@ -44,7 +43,8 @@ export function person() {
   group.userData = { mixer, actions };
   return group;
 }
-export function animatePerson(model, dt, motion = "idle") {
+export function animatePerson(model, dt, motion = "idle", speed = 0) {
+  model.userData.actions.walk.timeScale = speed / 1.4;
   for (const [name, action] of Object.entries(model.userData.actions))
     action.weight = T.MathUtils.damp(
       action.weight,

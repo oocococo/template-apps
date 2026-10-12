@@ -1,3 +1,4 @@
+import { rollWheels } from "./wheels.js";
 import * as T from "three";
 import { VEHICLES } from "./state.js";
 import { moveBody, blockedBody, vehicleBody } from "./physics.js";
@@ -583,9 +584,7 @@ export function createWorld(scene, assetBase) {
           };
           if (!blockedBody(next, solids)) p.set(next.x, 0, next.z);
         }
-        for (const w of t.model.userData.wheels)
-          w.rotation.x +=
-            ((moved.hit ? 0 : speed) * dt) / t.model.userData.radius;
+        rollWheels(t.model, (moved.hit ? 0 : speed) * dt);
       }
       for (const p of pedestrians) {
         const heading = p.model.rotation.y;
@@ -608,7 +607,7 @@ export function createWorld(scene, assetBase) {
         );
         p.model.position.set(moved.x, 0, moved.z);
         if (moved.hit) p.model.rotation.y += Math.PI;
-        animatePerson(p.model, dt, "walk");
+        animatePerson(p.model, dt, moved.hit ? "idle" : "walk", p.speed);
       }
     },
   };
