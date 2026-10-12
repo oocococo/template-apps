@@ -1,6 +1,8 @@
 # Tiana Web 模板应用
 
-每个顶层模板目录都是完整、可编辑的应用源码工程：two-to-three、study、whiteboard、ledger、notes、calendar、team-building。team-building 是团建聚餐应用，支持餐厅候选、投票、活动安排、评论与历史复制；使用要求见[应用说明](team-building/README.md)。前六个模板的原始工程来自 agent-skills 提交 `8da60f0` 中对应 `skills/tiana-*/assets/app/`，按 MIT 许可迁移，模板专属参考资料随工程迁入 docs/。
+每个顶层模板目录都是完整、可编辑的应用源码工程：two-to-three、study、whiteboard、ledger、notes、calendar、team-building、neon-coast。team-building 是团建聚餐应用，支持餐厅候选、投票、活动安排、评论与历史复制；使用要求见[应用说明](team-building/README.md)。前六个模板的原始工程来自 agent-skills 提交 `8da60f0` 中对应 `skills/tiana-*/assets/app/`，按 MIT 许可迁移，模板专属参考资料随工程迁入 docs/。
+
+neon-coast 是带 SQLite 云端存档的单人 3D 城市驾驶游戏，包含街头任务、车库购车、引擎升级与键盘／触控操作；使用要求见[游戏说明](neon-coast/README.md)。
 
 客户 Agent 每次应用任务运行 `tiana web list-template --json`，根据 name／description 选择合适起点。`tiana web init-template <name> --dir <目录> --json` 下载 MGR 配置的私有 OSS 包并原样解压；Agent 根据根目录 metadata.json 替换变量、初始化数据库、定制应用并交付。模板的 MGR 版本由上传时自动分配，客户 CLI 按名称取得当前可用包。
 
