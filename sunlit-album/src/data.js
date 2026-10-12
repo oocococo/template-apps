@@ -126,11 +126,13 @@ async function resize(image, max, quality) {
   canvas.width = Math.max(1, Math.round(image.width * scale));
   canvas.height = Math.max(1, Math.round(image.height * scale));
   const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
   return new Promise((resolve, reject) =>
     canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("无法生成缩略图。"))),
-      "image/webp",
+      "image/jpeg",
       quality,
     ),
   );
@@ -156,8 +158,8 @@ export async function uploadPhoto(blob, options = {}, progress = () => {}) {
     id,
     title: options.title || blob.name?.replace(/\.[^.]+$/, "") || "新的瞬间",
     original_path: prefix + "/original." + ext,
-    thumbnail_path: prefix + "/thumb.webp",
-    preview_path: prefix + "/preview.webp",
+    thumbnail_path: prefix + "/thumb.jpg",
+    preview_path: prefix + "/preview.jpg",
     width: image.width,
     height: image.height,
     bytes: blob.size,
@@ -174,16 +176,23 @@ export async function uploadPhoto(blob, options = {}, progress = () => {}) {
   } finally {
     image.close();
   }
-  const items = [
-    [photo.original_path, blob],
-    [photo.thumbnail_path, thumb],
-    [photo.preview_path, preview],
-  ];
+  const items = [[photo.original_path, blob]];
+  for (const [key, resized] of [
+    ["thumbnail_path", thumb],
+    ["preview_path", preview],
+  ]) {
+    if (blob.type !== "image/gif" && resized.size >= blob.size) {
+      photo[key] = photo.original_path;
+    } else {
+      items.push([photo[key], resized]);
+    }
+  }
   for (let i = 0; i < items.length; i++) {
     await files().put(...items[i], {
-      onProgress: (n, total) => progress((i + n / Math.max(total, 1)) / 3),
+      onProgress: (n, total) =>
+        progress((i + n / Math.max(total, 1)) / items.length),
     });
-    progress((i + 1) / 3);
+    progress((i + 1) / items.length);
   }
   const values = [
     photo.id,
