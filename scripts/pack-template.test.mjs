@@ -67,3 +67,16 @@ test("validation checks every recorded placeholder location and accepts absent o
   await writeFile(path.join(f.directory, "src/config.json"), '{"web":"no placeholder"}');
   await assert.rejects(validateTemplate(f.root, "demo"), /src\/config.json/);
 });
+
+
+test("pack preserves photo assets larger than one MiB", async t => {
+  const f = await fixture(t);
+  const photo = Buffer.alloc(2 * 1024 * 1024, 173);
+  await writeFile(path.join(f.directory, "photo.jpg"), photo);
+  const git = (...args) => execFileSync("git", args, {cwd: f.root, encoding: "utf8", stdio: "pipe"});
+  git("add", "demo/photo.jpg");
+  git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-qm", "Add photo asset");
+  const result = await packTemplate(f.root, "demo", git("rev-parse", "HEAD").trim());
+  const zip = unzipSync(new Uint8Array(await readFile(result.file)));
+  assert.deepEqual(Buffer.from(zip["photo.jpg"]), photo);
+});
