@@ -35,9 +35,16 @@ import {
   SlidersHorizontal,
   Expand,
   Shrink,
+  Folder,
+  FolderPlus,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import {
   files,
+  loadGroups,
+  createGroup,
+  assignGroup,
   loadPhotos,
   favorite,
   loadComments,
@@ -56,8 +63,6 @@ document.title = "晴日 · 相册";
 const filters = [
   ["all", "所有照片", Images],
   ["favorites", "个人收藏", Heart],
-  ["pets", "毛茸茸的朋友", PawPrint],
-  ["nature", "去有风的地方", Mountain],
 ];
 const dateLabel = (v) =>
   new Date(v).toLocaleDateString("zh-CN", {
@@ -348,6 +353,7 @@ function Viewer({
   fullscreen,
   enterFullscreen,
   toggleFullscreen,
+  onGroup,
 }) {
   const index = Math.max(
       0,
@@ -469,6 +475,15 @@ function Viewer({
               onClick={toggleFullscreen}
             >
               {fullscreen ? <Shrink size={20} /> : <Expand size={20} />}
+            </IconButton>
+            <IconButton
+              label="设置照片分组"
+              onClick={() => {
+                setPlaying(false);
+                onGroup(photo);
+              }}
+            >
+              <Folder size={20} />
             </IconButton>
             <IconButton label="下载原图" onClick={download}>
               <Download size={20} />
@@ -650,9 +665,125 @@ function ConfirmDelete({ photo, onCancel, onConfirm, busy }) {
     </dialog>
   );
 }
+function GroupDialog({ groups, ids, initial, onClose, onSave, onCreated }) {
+  const ref = useRef();
+  const [creating, setCreating] = useState(!ids),
+    [title, setTitle] = useState(""),
+    [category, setCategory] = useState(initial || "日常"),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  useEffect(() => {
+    ref.current.showModal();
+  }, []);
+  async function submit(e) {
+    e.preventDefault();
+    if (busy || (creating && !title.trim())) return;
+    setBusy(true);
+    setError("");
+    try {
+      let group;
+      if (creating) {
+        group = await createGroup(title.trim());
+        onCreated(group);
+        setCategory(group.name);
+        setCreating(false);
+      }
+      const target = group?.name || category;
+      if (ids) await assignGroup(ids, target);
+      onSave(group, target);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <dialog
+      ref={ref}
+      className="confirm group-dialog"
+      onCancel={(e) => {
+        e.preventDefault();
+        if (!busy) onClose();
+      }}
+    >
+      <form onSubmit={submit}>
+        <div className="group-symbol">
+          <FolderPlus size={26} />
+        </div>
+        <h3>{ids ? `设置 ${ids.length} 张照片的分组` : "新建分组"}</h3>
+        <p>
+          {ids
+            ? "每张照片归入一个分组，所有照片中始终可见。"
+            : "给一段回忆，起一个喜欢的名字。"}
+        </p>
+        {ids && (
+          <label className="group-field">
+            照片分组
+            <select
+              aria-label="照片分组"
+              disabled={busy}
+              value={creating ? "__new" : category}
+              onChange={(e) => {
+                setCreating(e.target.value === "__new");
+                if (e.target.value !== "__new") setCategory(e.target.value);
+              }}
+            >
+              <option value="日常">不分组</option>
+              {groups.map((g) => (
+                <option key={g.name} value={g.name}>
+                  {g.title}
+                </option>
+              ))}
+              <option value="__new">＋ 新建分组…</option>
+            </select>
+          </label>
+        )}
+        {creating && (
+          <label className="group-field">
+            分组名称
+            <input
+              autoFocus
+              aria-label="分组名称"
+              placeholder="例如：周末散步"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={busy}
+            />
+          </label>
+        )}
+        {error && (
+          <p className="group-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="confirm-actions">
+          <button
+            type="button"
+            className="secondary"
+            onClick={onClose}
+            disabled={busy}
+          >
+            取消
+          </button>
+          <button
+            type="submit"
+            className="primary"
+            disabled={busy || (creating && !title.trim())}
+          >
+            {busy ? "保存中…" : ids ? "保存分组" : "创建分组"}
+          </button>
+        </div>
+      </form>
+    </dialog>
+  );
+}
 function App() {
   const [photos, setPhotos] = useState([]),
     [filter, setFilter] = useState("all"),
+    [groups, setGroups] = useState([]),
+    [groupDialog, setGroupDialog] = useState(null),
+    [selecting, setSelecting] = useState(false),
+    [selected, setSelected] = useState(new Set()),
     [search, setSearch] = useState(""),
     [query, setQuery] = useState(""),
     [loading, setLoading] = useState(true),
@@ -727,9 +858,13 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const rows = await loadPhotos({ filter, search: query });
+      const [rows, groupRows] = await Promise.all([
+        loadPhotos({ filter, search: query }),
+        loadGroups(),
+      ]);
       if (seq === request.current) {
         setPhotos(rows);
+        setGroups(groupRows);
         setMore(rows.length === 100);
       }
     } catch (e) {
@@ -796,6 +931,37 @@ function App() {
     history.replaceState(null, "", "#photo/" + encodeURIComponent(id));
     setCurrent(id);
   }, []);
+  useEffect(() => {
+    setSelecting(false);
+    setSelected(new Set());
+  }, [filter, query]);
+  function selectPhoto(id) {
+    setSelected((current) => {
+      const next = new Set(current);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function groupSaved(group, category) {
+    const ids = groupDialog.ids;
+    if (ids) {
+      setPhotos((rows) =>
+        rows.map((p) => (ids.includes(p.id) ? { ...p, category } : p)),
+      );
+      setSelected(new Set());
+      setSelecting(false);
+      if (filter.startsWith("group:") && filter !== "group:" + category)
+        close();
+      refresh();
+      notify("照片分组已保存");
+    } else {
+      setFilter("group:" + group.name);
+      setSidebar(false);
+      setSearch("");
+      notify("分组已创建，可以添加照片了");
+    }
+    setGroupDialog(null);
+  }
   async function toggle(p) {
     if (favoriteBusy.current.has(p.id)) return;
     favoriteBusy.current.add(p.id);
@@ -833,12 +999,15 @@ function App() {
         fraction: 0,
       });
       try {
-        const p = await uploadPhoto(f, {}, (fraction) =>
-          setProgress({
-            label: `正在导入 ${i + 1} / ${selected.length}`,
-            detail: f.name,
-            fraction,
-          }),
+        const p = await uploadPhoto(
+          f,
+          { category: filter.startsWith("group:") ? filter.slice(6) : "日常" },
+          (fraction) =>
+            setProgress({
+              label: `正在导入 ${i + 1} / ${selected.length}`,
+              detail: f.name,
+              fraction,
+            }),
         );
         setPhotos((rows) => [p, ...rows]);
         success++;
@@ -849,7 +1018,6 @@ function App() {
     uploading.current = false;
     setProgress(null);
     notify(`已导入 ${success} 张照片`);
-    setFilter("all");
     setSearch("");
     refresh();
   }
@@ -891,7 +1059,11 @@ function App() {
   const rows = [];
   for (let i = 0; i < shown.length; i += columns)
     rows.push(shown.slice(i, i + columns));
-  const title = filters.find((f) => f[0] === filter)?.[1];
+  const activeGroup = groups.find((g) => "group:" + g.name === filter);
+  const title =
+    activeGroup?.title ||
+    filters.find((f) => f[0] === filter)?.[1] ||
+    "照片分组";
   return (
     <div
       className="app-shell"
@@ -949,21 +1121,35 @@ function App() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-label second">生活的切片</div>
-        <nav>
-          {filters.slice(2).map(([key, label, Icon]) => (
-            <button
-              key={key}
-              className={filter === key ? "selected" : ""}
-              onClick={() => {
-                setFilter(key);
-                setSidebar(false);
-              }}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </button>
-          ))}
+        <div className="sidebar-label second groups-heading">
+          <span>生活的切片</span>
+          <IconButton label="新建分组" onClick={() => setGroupDialog({})}>
+            <Plus size={16} />
+          </IconButton>
+        </div>
+        <nav aria-label="照片分组">
+          {groups.map((group) => {
+            const key = "group:" + group.name;
+            const Icon =
+              group.name === "宠物"
+                ? PawPrint
+                : group.name === "风景"
+                  ? Mountain
+                  : Folder;
+            return (
+              <button
+                key={key}
+                className={filter === key ? "selected" : ""}
+                onClick={() => {
+                  setFilter(key);
+                  setSidebar(false);
+                }}
+              >
+                <Icon size={18} />
+                <span>{group.title}</span>
+              </button>
+            );
+          })}
         </nav>
         <div className="sidebar-note">
           <div className="little-sun">
@@ -1045,14 +1231,23 @@ function App() {
               <p>
                 {filter === "favorites"
                   ? "那些让你忍不住多看一眼的瞬间。"
-                  : filter === "pets"
+                  : filter === "group:宠物"
                     ? "有它们的日子，总是暖洋洋的。"
-                    : filter === "nature"
+                    : filter === "group:风景"
                       ? "把山川、海风和晴天，装进相册。"
                       : "把平常的日子，过成值得收藏的瞬间。"}
               </p>
             </div>
             <div className="view-controls">
+              <button
+                className="secondary selection-toggle"
+                onClick={() => {
+                  setSelecting(!selecting);
+                  setSelected(new Set());
+                }}
+              >
+                {selecting ? "完成" : "选择照片"}
+              </button>
               <span>{shown.length} 张照片</span>
               <div className="view-segment">
                 <IconButton
@@ -1085,6 +1280,31 @@ function App() {
               {query ? "按名称查找" : "由近到远"}
             </span>
           </div>
+          {selecting && (
+            <div className="selection-bar">
+              <span>已选 {selected.size} 张</span>
+              <button
+                className="secondary"
+                onClick={() =>
+                  setSelected(
+                    selected.size === shown.length
+                      ? new Set()
+                      : new Set(shown.map((p) => p.id)),
+                  )
+                }
+              >
+                {selected.size === shown.length ? "取消全选" : "选择本页"}
+              </button>
+              <button
+                className="primary"
+                disabled={!selected.size}
+                onClick={() => setGroupDialog({ ids: [...selected] })}
+              >
+                <Folder size={16} />
+                加入分组
+              </button>
+            </div>
+          )}
           <div ref={wall} className="photo-wall">
             {error ? (
               <div className="empty">
@@ -1143,7 +1363,10 @@ function App() {
                   >
                     {row.map((p) => (
                       <article
-                        className="photo-card"
+                        className={
+                          "photo-card " +
+                          (selected.has(p.id) ? "photo-selected" : "")
+                        }
                         key={p.id}
                         style={{
                           width: (height * p.width) / p.height,
@@ -1152,8 +1375,13 @@ function App() {
                       >
                         <button
                           className="photo-open"
-                          aria-label={"查看 " + p.title}
-                          onClick={() => open(p.id)}
+                          aria-label={(selecting ? "选择 " : "查看 ") + p.title}
+                          aria-pressed={
+                            selecting ? selected.has(p.id) : undefined
+                          }
+                          onClick={() =>
+                            selecting ? selectPhoto(p.id) : open(p.id)
+                          }
                           style={{ height }}
                         >
                           <PhotoImage
@@ -1162,7 +1390,19 @@ function App() {
                             eager={i < 2}
                           />
                           <span className="photo-shade" />
-                          <span className="photo-category">{p.category}</span>
+                          <span className="photo-category">
+                            {groups.find((g) => g.name === p.category)?.title ||
+                              "日常"}
+                          </span>
+                          {selecting && (
+                            <span className="selection-mark">
+                              {selected.has(p.id) ? (
+                                <CheckCircle2 size={25} fill="currentColor" />
+                              ) : (
+                                <Circle size={25} />
+                              )}
+                            </span>
+                          )}
                         </button>
                         <button
                           className={
@@ -1242,6 +1482,17 @@ function App() {
           fullscreen={fullscreen}
           enterFullscreen={enterFullscreen}
           toggleFullscreen={toggleFullscreen}
+          onGroup={(p) => setGroupDialog({ ids: [p.id], initial: p.category })}
+        />
+      )}
+      {groupDialog && (
+        <GroupDialog
+          groups={groups}
+          ids={groupDialog.ids}
+          initial={groupDialog.initial}
+          onClose={() => setGroupDialog(null)}
+          onSave={groupSaved}
+          onCreated={(group) => setGroups((rows) => [...rows, group])}
         />
       )}
       {toDelete && (

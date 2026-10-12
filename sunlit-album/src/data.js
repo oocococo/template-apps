@@ -8,13 +8,9 @@ export async function loadPhotos({ before, filter = "all", search = "" } = {}) {
   const terms = [],
     args = [];
   if (filter === "favorites") terms.push("favorite=1");
-  if (filter === "pets") {
+  if (filter.startsWith("group:")) {
     terms.push("category=?");
-    args.push("宠物");
-  }
-  if (filter === "nature") {
-    terms.push("category=?");
-    args.push("风景");
+    args.push(filter.slice(6));
   }
   if (search) {
     terms.push("title LIKE ?");
@@ -35,6 +31,38 @@ export async function loadPhotos({ before, filter = "all", search = "" } = {}) {
     bytes: Number(p.bytes),
     favorite: Number(p.favorite) === 1,
   }));
+}
+export async function loadGroups() {
+  return (await sql("SELECT name,title FROM photo_groups ORDER BY title,name"))
+    .rows;
+}
+export async function createGroup(title) {
+  const group = { name: crypto.randomUUID(), title };
+  await verifiedWrite(
+    () =>
+      sql("INSERT INTO photo_groups(name,title) VALUES(?,?)", [
+        group.name,
+        group.title,
+      ]),
+    () => sql("SELECT name FROM photo_groups WHERE name=?", [group.name]),
+    (r) => r.rows[0]?.name === group.name,
+  );
+  return group;
+}
+export async function assignGroup(ids, category) {
+  const placeholders = ids.map(() => "?").join(",");
+  await verifiedWrite(
+    () =>
+      sql(`UPDATE photos SET category=? WHERE id IN (${placeholders})`, [
+        category,
+        ...ids,
+      ]),
+    () =>
+      sql(`SELECT id,category FROM photos WHERE id IN (${placeholders})`, ids),
+    (r) =>
+      r.rows.length === ids.length &&
+      r.rows.every((p) => p.category === category),
+  );
 }
 export async function favorite(photo, value) {
   await verifiedWrite(
