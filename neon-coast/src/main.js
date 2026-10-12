@@ -1,11 +1,12 @@
 import * as T from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import style from "./style.css?inline";
+import fontUrl from "@fontsource/barlow-condensed/files/barlow-condensed-latin-700-normal.woff2?url";
 import { createWorld, ROAD_X, ROAD_Z, GARAGE, JOBS } from "./world.js";
 import { car, person, mat } from "./models.js";
 import {
@@ -14,13 +15,17 @@ import {
   purchase,
   upgrade,
   completeMission,
-  blocked,
 } from "./state.js";
 import { sql, verifiedWrite } from "./db.js";
 import { AudioEngine } from "./audio.js";
+import { loadVehicles } from "./vehicle-assets.js";
+import { loadCharacters, animatePerson } from "./characters.js";
+import { moveBody, blockedBody, vehicleBody, overlap } from "./physics.js";
 
 const sheet = document.createElement("style");
-sheet.textContent = style;
+sheet.textContent =
+  `@font-face{font-family:Coast;src:url("${fontUrl}") format("woff2");font-weight:700;font-display:swap;}\n` +
+  style;
 document.head.append(sheet);
 const favicon = document.createElement("link");
 favicon.rel = "icon";
@@ -42,7 +47,7 @@ const root =
   document.body.appendChild(document.createElement("div"));
 root.innerHTML = `<canvas id="game" aria-label="霓虹海岸 3D 游戏场景"></canvas><div id="interface">
 <div class="vignette"></div>
-<div class="intro" id="intro"><div class="intro-content"><div class="eyebrow">A LITTLE CITY. A BIG NIGHT.</div><h1 class="game-title">NEON<span>COAST</span></h1><div class="chinese-title">霓虹海岸</div><p class="intro-copy">落日之后，整座城市都是你的。<br>发动引擎，接下一份委托，沿着海岸驶入夜色。</p><div class="start-row"><button id="start" class="primary" disabled>正在读取存档 <span>↗</span></button><button id="how" class="text-button">驾驶指南</button></div><div class="intro-meta"><span><i></i> 自由驾驶</span><span><i></i> 街头任务</span><span><i></i> 云端存档</span></div><div class="loading-msg" id="loading"></div></div></div>
+<div class="intro" id="intro"><div class="intro-content"><div class="eyebrow">A LITTLE CITY. A BIG NIGHT.</div><h1 class="game-title">NEON<span>COAST</span></h1><div class="chinese-title">霓虹海岸</div><p class="intro-copy">落日之后，整座城市都是你的。<br>发动引擎，接下一份委托，沿着海岸驶入夜色。</p><div class="start-row"><button id="start" class="primary" disabled>正在载入城市 <span>↗</span></button><button id="how" class="text-button">驾驶指南</button></div><div class="intro-meta"><span><i></i> 自由驾驶</span><span><i></i> 街头任务</span><span><i></i> 云端存档</span></div><div class="loading-msg" id="loading"></div></div></div>
 <div class="topbar"><div class="brand"><div class="brand-icon">N</div><div class="brand-text">NEON COAST<small>THE SUNSET DISTRICT</small></div></div><div class="top-actions"><span id="save-status" class="save-status">正在连接存档</span><button id="save" class="small-button" aria-label="保存游戏" title="保存游戏">${saveIcon}</button><button id="sound" class="small-button" aria-label="打开声音" title="打开声音">${soundIcon}</button><button id="menu" class="small-button" aria-label="暂停菜单" title="暂停菜单">${menuIcon}</button></div></div>
 <div class="intro-bottom"><div class="location-label"><b>OCEAN DRIVE</b><small>25° 47′ N &nbsp; / &nbsp; 80° 08′ W &nbsp; · &nbsp; 18:42</small></div><div class="edition">AN ORIGINAL DRIVING EXPERIENCE</div></div>
 <div class="hud"><div class="wallet"><label>街头资金</label><b id="cash">$ 300</b><div id="wanted" class="wanted"></div></div><div class="mission-card"><label id="mission-label">THE CITY IS YOURS</label><h3 id="mission-title">随心出发</h3><p id="mission-description">沿海岸兜风，或按 M 接下一份委托。</p><div class="mission-progress" id="mission-progress"></div></div><div class="minimap-wrap"><canvas id="minimap" width="356" height="356"></canvas><span class="map-north">N</span></div><div id="district" class="district">海滨大道 · OCEAN DRIVE</div><div class="speedometer"><strong id="speed">000</strong><small>KM/H</small><div class="speed-line"><i id="speed-line"></i></div><div class="car-name" id="car-name">COMET S / RWD</div></div><div class="controls"><span><kbd>W A S D</kbd> 驾驶</span><span><kbd>SPACE</kbd> 手刹</span><span><kbd>E</kbd> 上下车</span><span><kbd>M</kbd> 任务</span><span><kbd>TAB</kbd> 地图</span></div><div id="action-prompt" class="action-prompt"><kbd>M</kbd> 接受你的第一份委托</div><div class="touch-controls"><div class="touch-pad"><button data-key="a" aria-label="左转">◀</button><button data-key="d" aria-label="右转">▶</button><button data-key=" " aria-label="手刹">刹</button><button data-key="s" aria-label="倒车">↓</button></div><div class="touch-extra"><button id="touch-car">上下车</button><button id="touch-jobs">任务</button><button id="touch-garage">车库</button></div><div class="touch-pad" style="grid-template-columns:49px"><button data-key="w" class="accelerate" aria-label="加速">↑</button></div></div></div>
@@ -75,12 +80,22 @@ renderer.outputColorSpace = T.SRGBColorSpace;
 const scene = new T.Scene(),
   camera = new T.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 2200);
 const pmrem = new T.PMREMGenerator(renderer);
-const room = new RoomEnvironment();
-scene.environment = pmrem.fromScene(room, 0.04).texture;
-room.dispose();
-pmrem.dispose();
-scene.environmentIntensity = 0.6;
-const world = createWorld(scene);
+const assetBase = new URL("./", import.meta.url);
+try {
+  const [, , sky] = await Promise.all([
+    loadCharacters(assetBase),
+    loadVehicles(assetBase),
+    new RGBELoader().loadAsync(new URL("textures/sky.hdr", assetBase).href),
+  ]);
+  scene.environment = pmrem.fromEquirectangular(sky).texture;
+  sky.dispose();
+  pmrem.dispose();
+  scene.environmentIntensity = 0.7;
+} catch (e) {
+  $("loading").textContent = "场景资源加载失败，请刷新重试。";
+  throw e;
+}
+const world = createWorld(scene, assetBase);
 let playerCar = car(),
   avatar = person("#edbdad");
 scene.add(playerCar, avatar);
@@ -102,6 +117,7 @@ const player = {
   vx: 0,
   vz: 0,
   driving: true,
+  steering: 0,
 };
 let cameraMode = 0,
   lastTime = null,
@@ -147,7 +163,7 @@ const garageRing = new T.Mesh(
 garageRing.rotation.x = -Math.PI / 2;
 garageRing.position.set(GARAGE.x, 0.13, GARAGE.z);
 scene.add(garageRing);
-const police = car("#dee4e3");
+const police = car("sedan", "#dee4e3");
 police.add(
   new T.Mesh(
     new T.BoxGeometry(1.1, 0.14, 0.33),
@@ -242,7 +258,7 @@ async function load() {
         `车库 ${state.owned.length} 辆 · 已完成 ${state.completed} 份委托`;
     } else {
       $("start").innerHTML = "驶入海岸 <span>↗</span>";
-      $("loading").textContent = "你的第一辆 Comet S 已在海滨大道等候。";
+      $("loading").textContent = "你的 Comet S 已在海滨大道等候。";
     }
     loaded = true;
     status("云端存档已连接");
@@ -274,9 +290,28 @@ function restore() {
 function changeCar() {
   scene.remove(playerCar);
   const v = VEHICLES.find((v) => v.id === state.vehicle);
-  playerCar = car(v.color, v.id !== "comet");
+  playerCar = car(v.id);
   playerCar.position.set(player.x, 0, player.z);
   playerCar.rotation.y = player.heading;
+  const solids = solidBodies(playerCar),
+    body = vehicleBody(playerCar);
+  if (blockedBody(body, solids)) {
+    let space;
+    for (let radius = 1; radius <= 24 && !space; radius++)
+      for (let n = 0; n < 16 && !space; n++) {
+        const candidate = {
+          ...body,
+          x: body.x + Math.sin((n * Math.PI) / 8) * radius,
+          z: body.z + Math.cos((n * Math.PI) / 8) * radius,
+        };
+        if (!blockedBody(candidate, solids)) space = candidate;
+      }
+    if (space) {
+      player.x = space.x;
+      player.z = space.z;
+      playerCar.position.set(space.x, 0, space.z);
+    }
+  }
   scene.add(playerCar);
   $("car-name").textContent = v.name + " / RWD";
 }
@@ -301,7 +336,7 @@ function help() {
   panel(
     "OWN THE STREETS",
     "驾驶指南 · 熟悉这座城市",
-    `<div class="help-grid"><div><kbd>W / ↑</kbd> 加速 / 步行</div><div><kbd>S / ↓</kbd> 刹车 / 倒车</div><div><kbd>A D</kbd> 左右转向</div><div><kbd>SPACE</kbd> 手刹漂移</div><div><kbd>E</kbd> 停车后上下车</div><div><kbd>M</kbd> 打开任务电台</div><div><kbd>G</kbd> 进入车库（需到达）</div><div><kbd>TAB</kbd> 查看城市地图</div><div><kbd>C</kbd> 切换驾驶镜头</div><div><kbd>ESC</kbd> 暂停 / 继续</div></div><p class="panel-footer">沿道路驾驶，跟随薄荷色光柱完成委托。赚取现金后，回到海滨大道的 Coast Customs 购买新车、升级引擎。<br>任务结算与购车会保存进度；也可以随时点击右上角的存档按钮。手机使用屏幕下方的触控按钮。</p>`,
+    `<div class="help-grid"><div><kbd>W / ↑</kbd> 加速 / 步行</div><div><kbd>S / ↓</kbd> 刹车 / 倒车</div><div><kbd>A D</kbd> 左右转向</div><div><kbd>SPACE</kbd> 手刹漂移</div><div><kbd>E</kbd> 停车下车 / 接管路边车辆</div><div><kbd>M</kbd> 打开任务电台</div><div><kbd>G</kbd> 进入车库（需到达）</div><div><kbd>TAB</kbd> 查看城市地图</div><div><kbd>C</kbd> 追车 / 引擎盖 / 高位镜头</div><div><kbd>ESC</kbd> 暂停 / 继续</div></div><p class="panel-footer">沿道路驾驶，跟随薄荷色光柱完成委托。赚取现金后，回到海滨大道的 Coast Customs 购买新车、升级引擎。<br>任务结算与购车会保存进度；也可以随时点击右上角的存档按钮。手机使用屏幕下方的触控按钮。</p><p class="panel-footer">车辆模型：Eric Chadwick / Darmstadt Graphics Group · CC BY 4.0。角色：Quaternius · CC0。路面与环境光：Poly Haven · CC0。</p>`,
   );
 }
 function jobs() {
@@ -333,8 +368,46 @@ function spawnPolice() {
   police.position.set(player.x, 0, player.z + 25);
   police.rotation.y = player.heading;
 }
-function carSilhouette(color) {
-  return `<svg viewBox="0 0 160 65" aria-hidden="true"><ellipse cx="80" cy="55" rx="65" ry="5" fill="#0c2633" opacity=".5"/><path d="M15 36 36 31 54 15 104 15 124 32 144 36 147 48H12Z" fill="${color}"/><path d="m58 19-14 14h32V19Zm23 0v14h33l-14-14Z" fill="#263f4e"/><path d="M14 39h132v5H14Z" fill="#fff" opacity=".2"/><circle cx="40" cy="48" r="11" fill="#152432"/><circle cx="40" cy="48" r="6" fill="#a5babd"/><circle cx="120" cy="48" r="11" fill="#152432"/><circle cx="120" cy="48" r="6" fill="#a5babd"/><path d="M14 36h10v5H14Zm124 0h7v5h-7Z" fill="#fff3d4"/></svg>`;
+const vehiclePreviews = new Map();
+function carSilhouette(v) {
+  if (!vehiclePreviews.has(v.id)) {
+    const previewScene = new T.Scene();
+    previewScene.background = new T.Color("#cbd3d3");
+    previewScene.environment = scene.environment;
+    previewScene.add(new T.HemisphereLight("#ffffff", "#71848a", 3));
+    const sun = new T.DirectionalLight("#fff3d9", 3);
+    sun.position.set(4, 7, 5);
+    previewScene.add(sun);
+    const model = car(v.id);
+    previewScene.add(model);
+    const cam = new T.PerspectiveCamera(32, 2.1, 0.1, 30);
+    cam.position.set(6, 3.4, 7);
+    cam.lookAt(0, 0.75, 0);
+    const target = new T.WebGLRenderTarget(420, 200),
+      pixels = new Uint8Array(420 * 200 * 4);
+    renderer.setRenderTarget(target);
+    renderer.render(previewScene, cam);
+    renderer.readRenderTargetPixels(target, 0, 0, 420, 200, pixels);
+    renderer.setRenderTarget(null);
+    const canvas = document.createElement("canvas");
+    canvas.width = 420;
+    canvas.height = 200;
+    const ctx = canvas.getContext("2d");
+    const data = ctx.createImageData(420, 200);
+    for (let y = 0; y < 200; y++)
+      data.data.set(
+        pixels.subarray((199 - y) * 420 * 4, (200 - y) * 420 * 4),
+        y * 420 * 4,
+      );
+    ctx.putImageData(data, 0, 0);
+    vehiclePreviews.set(v.id, canvas.toDataURL());
+    target.dispose();
+    model.traverse((o) => {
+      if (o.isMesh) o.geometry.dispose();
+    });
+    model.userData.paint.dispose();
+  }
+  return `<img src="${vehiclePreviews.get(v.id)}" alt="${v.label}" width="420" height="200">`;
 }
 function garage() {
   if (!started) return;
@@ -351,7 +424,7 @@ function garage() {
   panel(
     "COAST CUSTOMS",
     `海岸车库 · 可用现金 $${state.cash.toLocaleString()}`,
-    `<div class="garage-grid">${VEHICLES.map((v) => `<div class="garage-card ${state.vehicle === v.id ? "selected" : ""}"><div class="car-swatch">${carSilhouette(v.color)}</div><h3>${v.name}</h3><p>${v.label}</p><p>极速 ${Math.round(v.maxSpeed * 3.6)} km/h</p><button data-car="${v.id}">${state.vehicle === v.id ? "正在驾驶" : state.owned.includes(v.id) ? "换上这辆车" : "$ " + v.price.toLocaleString() + " · 购买"}</button></div>`).join("")}</div><div class="upgrade-row"><div>引擎调校 · ${state.upgrade}/3<small>每级提升加速与极速，所有已拥有车辆共享。</small></div><button id="upgrade" class="secondary">${state.upgrade >= 3 ? "已满级" : "$ " + (state.upgrade + 1) * 350 + " · 升级"}</button></div>`,
+    `<div class="garage-grid">${VEHICLES.map((v) => `<div class="garage-card ${state.vehicle === v.id ? "selected" : ""}"><div class="car-swatch">${carSilhouette(v)}</div><h3>${v.name}</h3><p>${v.label}</p><p>极速 ${Math.round(v.maxSpeed * 3.6)} km/h</p><button data-car="${v.id}">${state.vehicle === v.id && state.owned.includes(v.id) ? "正在驾驶" : state.owned.includes(v.id) ? "换上这辆车" : "$ " + v.price.toLocaleString() + " · 购买"}</button></div>`).join("")}</div><div class="upgrade-row"><div>引擎调校 · ${state.upgrade}/3<small>每级提升加速与极速，所有已拥有车辆共享。</small></div><button id="upgrade" class="secondary">${state.upgrade >= 3 ? "已满级" : "$ " + (state.upgrade + 1) * 350 + " · 升级"}</button></div>`,
   );
   document.querySelectorAll("[data-car]").forEach(
     (b) =>
@@ -400,44 +473,113 @@ function mapPanel() {
   );
   drawMap($("big-map"), true);
 }
+function solidBodies(exclude) {
+  return world.colliders.concat(
+    [
+      playerCar,
+      ...world.traffic.map((t) => t.model),
+      ...world.parked.map((t) => t.model),
+      ...(police.visible ? [police] : []),
+    ]
+      .filter((m) => m !== exclude)
+      .map(vehicleBody),
+  );
+}
+function doorPositions(model) {
+  const b = vehicleBody(model),
+    d = b.hx + 0.65;
+  return [-1, 1].map((side) => ({
+    x: b.x + Math.cos(b.heading) * d * side,
+    z: b.z - Math.sin(b.heading) * d * side,
+    heading: b.heading,
+    hx: 0.32,
+    hz: 0.32,
+  }));
+}
+function nearbyCar() {
+  let nearest = null,
+    distance = 2.4;
+  for (const model of [
+    playerCar,
+    ...world.traffic.map((t) => t.model),
+    ...world.parked.map((t) => t.model),
+  ]) {
+    for (const door of doorPositions(model)) {
+      const d = Math.hypot(door.x - player.x, door.z - player.z);
+      if (d < distance) {
+        nearest = model;
+        distance = d;
+      }
+    }
+  }
+  return nearest;
+}
 function enterExit() {
   if (!started || paused) return;
   if (player.driving) {
-    if (Math.abs(player.speed) > 3) {
+    if (Math.abs(player.speed) > 2) {
       notify("先停车，再按 E 下车");
       return;
     }
-    let x = player.x + Math.cos(player.heading) * 2.7,
-      z = player.z - Math.sin(player.heading) * 2.7;
-    if (blocked(x, z, world.colliders, 0.35)) {
-      x = player.x - Math.cos(player.heading) * 2.7;
-      z = player.z + Math.sin(player.heading) * 2.7;
-    }
-    if (blocked(x, z, world.colliders, 0.35)) {
-      notify("这里太窄，请换个地方停车");
+    const exit = doorPositions(playerCar).find(
+      (p) => !blockedBody(p, solidBodies()),
+    );
+    if (!exit) {
+      notify("车门旁空间不足，请换个地方停车");
       return;
     }
-    player.driving = false;
-    player.x = x;
-    player.z = z;
-    player.speed = player.vx = player.vz = 0;
+    Object.assign(player, {
+      x: exit.x,
+      z: exit.z,
+      driving: false,
+      speed: 0,
+      vx: 0,
+      vz: 0,
+    });
+    avatar.position.set(player.x, 0, player.z);
     avatar.visible = true;
-    notify("步行探索 · 回到车旁按 E 上车");
+    notify("走到任意车辆的车门旁，按 E 驾驶");
   } else {
-    if (
-      Math.hypot(
-        player.x - playerCar.position.x,
-        player.z - playerCar.position.z,
-      ) > 6
-    ) {
-      notify("靠近你的车，再按 E 上车");
+    const target = nearbyCar();
+    if (!target) {
+      notify("靠近车门，再按 E 上车");
       return;
     }
-    player.driving = true;
-    player.x = playerCar.position.x;
-    player.z = playerCar.position.z;
-    player.heading = playerCar.rotation.y;
+    if (target !== playerCar) {
+      const t = world.traffic.findIndex((t) => t.model === target);
+      if (t >= 0) {
+        world.traffic.splice(t, 1);
+        const exit = doorPositions(target).find(
+          (p) => !blockedBody(p, solidBodies()),
+        );
+        if (exit) {
+          const driver = person();
+          driver.position.set(exit.x, 0, exit.z);
+          driver.rotation.y = target.rotation.y + Math.PI / 2;
+          scene.add(driver);
+          world.pedestrians.push({ model: driver, speed: 1.5 });
+        }
+      }
+      const i = world.parked.findIndex((t) => t.model === target);
+      if (i >= 0) world.parked.splice(i, 1);
+      world.parked.push({ model: playerCar });
+      playerCar = target;
+      state.vehicle = target.userData.vehicleId;
+      notify("已接管 " + VEHICLES.find((v) => v.id === state.vehicle).name);
+    }
+    Object.assign(player, {
+      driving: true,
+      x: target.position.x,
+      z: target.position.z,
+      heading: target.rotation.y,
+      speed: 0,
+      vx: 0,
+      vz: 0,
+      steering: 0,
+    });
     avatar.visible = false;
+    dirty = true;
+    save();
   }
   updateHUD();
 }
@@ -460,7 +602,7 @@ $("sound").onclick = () => {
   const on = audio.toggle();
   $("sound").style.opacity = on ? "1" : ".5";
   $("sound").setAttribute("aria-label", on ? "关闭声音" : "打开声音");
-  notify(on ? "COAST FM 88.6 · 正在播放" : "声音已关闭");
+  notify(on ? "引擎与路面声音已开启" : "声音已关闭");
 };
 $("touch-car").onclick = enterExit;
 $("touch-jobs").onclick = jobs;
@@ -497,7 +639,10 @@ window.addEventListener("keydown", (e) => {
   if (k === "m") jobs();
   if (k === "g") garage();
   if (k === "tab" && started) mapPanel();
-  if (k === "c") cameraMode = (cameraMode + 1) % 2;
+  if (k === "c") {
+    cameraMode = (cameraMode + 1) % 3;
+    notify(["追车视角", "引擎盖视角", "高位视角"][cameraMode]);
+  }
 });
 window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener("blur", () => {
@@ -531,49 +676,75 @@ function advance(dt) {
   if (player.driving) {
     const max = vehicle.maxSpeed + state.upgrade * 3;
     const acc = vehicle.acceleration + state.upgrade * 2;
-    if (throttle) player.speed += acc * dt;
-    else if (brake) player.speed -= (player.speed > 0 ? 25 : acc * 0.65) * dt;
-    else player.speed *= Math.exp(-0.6 * dt);
-    if (handbrake) player.speed *= Math.exp(-1.2 * dt);
-    player.speed = T.MathUtils.clamp(player.speed, -10, max);
+    const previousSpeed = player.speed;
+    if (throttle)
+      player.speed +=
+        (player.speed < -0.5
+          ? 12
+          : acc * (1 - (0.65 * Math.max(0, player.speed)) / max)) * dt;
+    else if (brake) player.speed -= (player.speed > 0.5 ? 12 : acc * 0.45) * dt;
+    else
+      player.speed = T.MathUtils.damp(
+        player.speed,
+        0,
+        0.32 + Math.abs(player.speed) * 0.009,
+        dt,
+      );
+    if (handbrake) player.speed = T.MathUtils.damp(player.speed, 0, 1.8, dt);
+    player.speed = T.MathUtils.clamp(player.speed, -8, max);
+    player.steering = T.MathUtils.damp(player.steering, steer, 7, dt);
+    const wheelAngle =
+      (player.steering * 0.53) / (1 + Math.abs(player.speed) * 0.07);
+    const yaw = (player.speed / (vehicle.length * 0.64)) * Math.tan(wheelAngle);
+    const gripLimit = (handbrake ? 11 : 8.5) / (Math.abs(player.speed) + 1);
     const turn =
-      ((steer * Math.min(Math.abs(player.speed) / 5, 1) * 1.4) /
-        (1 + Math.abs(player.speed) / 32)) *
-      Math.sign(player.speed);
-    player.heading += turn * dt * (handbrake ? 1.85 : 1);
-    const grip = 1 - Math.exp(-(handbrake ? 2.5 : 9) * dt);
+      T.MathUtils.clamp(yaw, -gripLimit, gripLimit) *
+      dt *
+      (handbrake ? 1.35 : 1);
+    const nextHeading = player.heading + turn;
+    const grip = 1 - Math.exp(-(handbrake ? 2 : 11) * dt);
     player.vx = T.MathUtils.lerp(
       player.vx,
-      Math.sin(player.heading) * player.speed,
+      Math.sin(nextHeading) * player.speed,
       grip,
     );
     player.vz = T.MathUtils.lerp(
       player.vz,
-      Math.cos(player.heading) * player.speed,
+      Math.cos(nextHeading) * player.speed,
       grip,
     );
-    nx = player.x + player.vx * dt;
-    nz = player.z + player.vz * dt;
-    if (blocked(nx, nz, world.colliders, 1.25)) {
-      player.speed *= -0.24;
-      player.vx *= -0.2;
-      player.vz *= -0.2;
-      nx = player.x;
-      nz = player.z;
-      if (elapsed - lastCollision > 0.8) {
+    const moved = moveBody(
+      {
+        ...vehicleBody(playerCar),
+        x: player.x,
+        z: player.z,
+        heading: player.heading,
+      },
+      player.vx * dt,
+      player.vz * dt,
+      turn,
+      solidBodies(playerCar),
+    );
+    nx = moved.x;
+    nz = moved.z;
+    player.heading = moved.heading;
+    if (moved.hit) {
+      const traveled = Math.hypot(nx - player.x, nz - player.z),
+        requested = Math.hypot(player.vx, player.vz) * dt;
+      player.speed *= requested > 0 ? Math.min(0.7, traveled / requested) : 0;
+      player.vx = dt ? (nx - player.x) / dt : 0;
+      player.vz = dt ? (nz - player.z) / dt : 0;
+      if (elapsed - lastCollision > 0.3) {
         lastCollision = elapsed;
-        audio.tone(70, 0.15, 0.4, "triangle");
+        audio.tone(55, 0.16, 0.35, "triangle");
       }
     }
-    for (const t of world.traffic) {
-      if (Math.hypot(nx - t.model.position.x, nz - t.model.position.z) < 2.6) {
-        player.speed *= 0.75;
-        if (elapsed - lastCollision > 0.8) {
-          lastCollision = elapsed;
-          audio.tone(70, 0.13, 0.3);
-        }
-      }
-    }
+    playerCar.rotation.x = T.MathUtils.damp(
+      playerCar.rotation.x,
+      T.MathUtils.clamp((player.speed - previousSpeed) * 0.006, -0.035, 0.025),
+      5,
+      dt,
+    );
     state.distance += Math.hypot(nx - player.x, nz - player.z);
     player.x = nx;
     player.z = nz;
@@ -585,12 +756,12 @@ function advance(dt) {
     playerCar.rotation.y = player.heading;
     playerCar.rotation.z = T.MathUtils.lerp(
       playerCar.rotation.z,
-      -steer * player.speed * 0.0009,
+      -player.steering * player.speed * 0.0014,
       dt * 5,
     );
     for (const w of playerCar.userData.wheels) {
-      w.rotation.x += player.speed * dt * 2;
-      if (w.position.z > 0) w.rotation.y = steer * 0.3;
+      w.rotation.x += (player.speed * dt) / playerCar.userData.radius;
+      if (w.position.z > 0) w.rotation.y = wheelAngle;
     }
     if (handbrake && Math.abs(player.speed) > 10) {
       const p = smoke[smokeIndex++ % smoke.length];
@@ -603,21 +774,20 @@ function advance(dt) {
       p.mesh.visible = true;
     }
   } else {
-    if (throttle || brake) {
-      const speed = (throttle ? 1 : -1) * 4;
-      nx = player.x + Math.sin(player.heading) * speed * dt;
-      nz = player.z + Math.cos(player.heading) * speed * dt;
-      if (!blocked(nx, nz, world.colliders, 0.35)) {
-        player.x = nx;
-        player.z = nz;
-      }
-      for (let i = 0; i < 2; i++)
-        avatar.userData.legs[i].rotation.x =
-          Math.sin(elapsed * 10 + i * Math.PI) * 0.45;
-    }
+    const speed = (throttle ? 1 : brake ? -1 : 0) * 3.2;
     player.heading += steer * 2.4 * dt;
+    const moved = moveBody(
+      { ...player, hx: 0.32, hz: 0.32 },
+      Math.sin(player.heading) * speed * dt,
+      Math.cos(player.heading) * speed * dt,
+      0,
+      solidBodies(),
+    );
+    player.x = moved.x;
+    player.z = moved.z;
     avatar.position.set(player.x, 0, player.z);
     avatar.rotation.y = player.heading;
+    animatePerson(avatar, dt, speed ? "walk" : "idle");
   }
   if (Math.abs(player.speed) > 0.1) dirty = true;
   for (const p of smoke)
@@ -628,7 +798,7 @@ function advance(dt) {
       p.mesh.material.opacity = Math.max(0, p.life * 0.22);
       if (p.life <= 0) p.mesh.visible = false;
     }
-  audio.update(player.speed, player.driving);
+  audio.update(player.speed, player.driving, throttle, handbrake);
   updateMission(dt);
 }
 function updateMission(dt) {
@@ -665,17 +835,21 @@ function updateMission(dt) {
     const d = delta.length();
     if (d > 3) {
       delta.normalize();
-      const nx = police.position.x + delta.x * dt * 15,
-        nz = police.position.z + delta.z * dt * 15;
-      if (!blocked(nx, nz, world.colliders, 1)) {
-        police.position.set(nx, 0, nz);
-        police.rotation.y = Math.atan2(delta.x, delta.z);
-      } else {
-        const px = police.position.x,
-          pz = police.position.z;
-        if (!blocked(nx, pz, world.colliders, 1)) police.position.x = nx;
-        else if (!blocked(px, nz, world.colliders, 1)) police.position.z = nz;
-      }
+      const desired = Math.atan2(delta.x, delta.z),
+        current = police.rotation.y;
+      const turn = Math.atan2(
+        Math.sin(desired - current),
+        Math.cos(desired - current),
+      );
+      const moved = moveBody(
+        vehicleBody(police),
+        delta.x * dt * 15,
+        delta.z * dt * 15,
+        T.MathUtils.clamp(turn, -dt, dt),
+        solidBodies(police),
+      );
+      police.position.set(moved.x, 0, moved.z);
+      police.rotation.y = moved.heading;
     }
     police.children
       .at(-1)
@@ -742,9 +916,12 @@ function updateHUD() {
       : player.z < -100
         ? "北岸 · NORTH SHORE"
         : "棕榈街区 · PALM DISTRICT";
-  if (!player.driving)
-    $("action-prompt").innerHTML = "<kbd>E</kbd> 靠近车辆后上车";
-  else if (Math.hypot(player.x - GARAGE.x, player.z - GARAGE.z) < 23)
+  if (!player.driving) {
+    const target = nearbyCar();
+    $("action-prompt").innerHTML = target
+      ? `<kbd>E</kbd> ${target === playerCar ? "上车" : "接管"} · ${VEHICLES.find((v) => v.id === target.userData.vehicleId).name}`
+      : "走到车门旁 · 按 E 驾驶任意车辆";
+  } else if (Math.hypot(player.x - GARAGE.x, player.z - GARAGE.z) < 23)
     $("action-prompt").innerHTML = "<kbd>G</kbd> 进入 Coast Customs 车库";
   else if (m)
     $("action-prompt").innerHTML =
@@ -859,24 +1036,52 @@ function updateCamera(dt) {
     return;
   }
   const h = player.heading,
-    back = cameraMode ? 21 : 11,
-    height = player.driving ? (cameraMode ? 15 : 5.7) : 4.5;
-  const target = new T.Vector3(
-    player.x - Math.sin(h) * back,
-    height,
-    player.z - Math.cos(h) * back,
-  );
-  cameraPos.lerp(target, 1 - Math.exp(-dt * 3.6));
-  look.lerp(
-    new T.Vector3(player.x + Math.sin(h) * 6, 1.15, player.z + Math.cos(h) * 6),
-    1 - Math.exp(-dt * 5),
-  );
+    hood = player.driving && cameraMode === 1;
+  const back = player.driving ? (cameraMode === 2 ? 16 : 8.3) : 5.5;
+  const height = player.driving ? (cameraMode === 2 ? 10 : 3.4) : 2.8;
+  const forward = new T.Vector3(Math.sin(h), 0, Math.cos(h));
+  const anchor = new T.Vector3(player.x, 1.25, player.z);
+  if (hood) {
+    const v = VEHICLES.find((v) => v.id === state.vehicle);
+    cameraPos.copy(anchor).addScaledVector(forward, v.length * 0.28);
+    cameraPos.y = v.height + 0.07;
+    look.copy(cameraPos).addScaledVector(forward, 30);
+    look.y -= 0.65;
+  } else {
+    const target = anchor.clone().addScaledVector(forward, -back);
+    target.y = height;
+    const obstruction = (p) =>
+      world.colliders.some(
+        (b) =>
+          p.y < (b.height || 1) + 0.4 &&
+          Math.abs(p.x - b.x) < b.hx + 0.3 &&
+          Math.abs(p.z - b.z) < b.hz + 0.3,
+      );
+    cameraPos.lerp(target, 1 - Math.exp(-dt * 5));
+    // Shorten the camera boom against the actual buildings, including while the camera catches up.
+    const delta = cameraPos.clone().sub(anchor),
+      length = delta.length();
+    for (let distance = 0.5; distance < length; distance += 0.25) {
+      const p = anchor.clone().addScaledVector(delta, distance / length);
+      if (obstruction(p)) {
+        cameraPos
+          .copy(anchor)
+          .addScaledVector(delta, Math.max(0.4, distance - 0.4) / length);
+        break;
+      }
+    }
+    look.lerp(
+      anchor.clone().addScaledVector(forward, player.driving ? 5 : 1),
+      1 - Math.exp(-dt * 8),
+    );
+  }
   camera.position.copy(cameraPos);
   camera.lookAt(look);
-  camera.fov = T.MathUtils.lerp(
+  camera.fov = T.MathUtils.damp(
     camera.fov,
-    48 + Math.min(Math.abs(player.speed) * 0.22, 9),
-    dt * 2,
+    (hood ? 62 : 52) + Math.min(Math.abs(player.speed) * 0.16, 7),
+    3,
+    dt,
   );
   camera.updateProjectionMatrix();
 }
@@ -887,7 +1092,8 @@ function frame(now) {
   lastTime = now;
   elapsed += dt;
   if (started && !paused) advance(dt);
-  if (!paused) world.update(started ? dt : dt * 0.4, elapsed, player);
+  if (!paused)
+    world.update(started ? dt : dt * 0.4, elapsed, player, playerCar, police);
   updateCamera(dt);
   if (elapsed - lastUI > 0.1) {
     updateHUD();

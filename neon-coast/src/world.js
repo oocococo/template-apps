@@ -1,4 +1,7 @@
 import * as T from "three";
+import { VEHICLES } from "./state.js";
+import { moveBody, blockedBody, vehicleBody } from "./physics.js";
+import { animatePerson } from "./characters.js";
 import {
   mat,
   box,
@@ -58,10 +61,11 @@ export const JOBS = [
     ],
   },
 ];
-export function createWorld(scene) {
+export function createWorld(scene, assetBase) {
   const staticGroup = new T.Group(),
     colliders = [],
     traffic = [],
+    parked = [],
     pedestrians = [];
   let seed = 83215;
   const rand = () => {
@@ -69,8 +73,8 @@ export function createWorld(scene) {
     return seed / 4294967296;
   };
   const add = (o) => (staticGroup.add(o), o);
-  scene.background = new T.Color("#e6a6a1");
-  scene.fog = new T.FogExp2("#d29fa6", 0.0024);
+  scene.background = new T.Color("#b4cfde");
+  scene.fog = new T.FogExp2("#b8c9d0", 0.0019);
   const sky = new T.Mesh(
     new T.SphereGeometry(1600, 32, 24),
     new T.ShaderMaterial({
@@ -80,23 +84,23 @@ export function createWorld(scene) {
       vertexShader:
         "varying vec3 v;void main(){v=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
       fragmentShader:
-        "varying vec3 v;void main(){float h=normalize(v).y;vec3 c=mix(vec3(.83,.37,.24),vec3(.11,.19,.40),smoothstep(-.02,.7,h));c=mix(vec3(.46,.23,.36),c,smoothstep(-.4,.0,h));gl_FragColor=vec4(c,1.);}",
+        "varying vec3 v;void main(){float h=normalize(v).y;vec3 c=mix(vec3(.83,.86,.84),vec3(.23,.47,.69),smoothstep(-.02,.7,h));c=mix(vec3(.66,.74,.78),c,smoothstep(-.4,.0,h));gl_FragColor=vec4(c,1.);}",
     }),
   );
   scene.add(sky);
   const sun = new T.Mesh(
-    new T.SphereGeometry(56, 24, 16),
+    new T.SphereGeometry(9, 24, 16),
     new T.MeshBasicMaterial({
       color: "#ffdb9a",
       fog: false,
       toneMapped: false,
     }),
   );
-  sun.position.set(330, 105, -800);
+  sun.position.set(330, 230, -800);
   scene.add(sun);
-  const hemi = new T.HemisphereLight("#a6b9dd", "#a87665", 1.65);
+  const hemi = new T.HemisphereLight("#c4e0f2", "#8c8876", 1.9);
   scene.add(hemi);
-  const sunlight = new T.DirectionalLight("#ffc79c", 3.4);
+  const sunlight = new T.DirectionalLight("#ffe5be", 3.0);
   sunlight.position.set(100, 110, -100);
   sunlight.castShadow = true;
   sunlight.shadow.mapSize.set(2048, 2048);
@@ -126,20 +130,24 @@ export function createWorld(scene) {
   ocean.rotation.x = -Math.PI / 2;
   ocean.position.set(1035, -0.32, 0);
   scene.add(ocean);
-  const road = mat("#525766", { roughness: 0.88 });
-  road.onBeforeCompile = (shader) => {
-    shader.vertexShader = "varying vec3 roadPosition;\n" + shader.vertexShader;
-    shader.vertexShader = shader.vertexShader.replace(
-      "#include <worldpos_vertex>",
-      "#include <worldpos_vertex>\nroadPosition=(modelMatrix*vec4(transformed,1.)).xyz;",
-    );
-    shader.fragmentShader =
-      "varying vec3 roadPosition;\n" + shader.fragmentShader;
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <color_fragment>",
-      "#include <color_fragment>\nfloat grain=fract(sin(dot(floor(roadPosition.xz*55.),vec2(12.9898,78.233)))*43758.5453);diffuseColor.rgb*=.96+grain*.08;float tire=sin(roadPosition.x*.3)*sin(roadPosition.z*.11);diffuseColor.rgb*=.95+tire*.045;",
-    );
-  };
+  const textureLoader = new T.TextureLoader();
+  const roadMap = textureLoader.load(
+    new URL("textures/asphalt.jpg", assetBase).href,
+  );
+  const normal = textureLoader.load(
+    new URL("textures/asphalt-normal.jpg", assetBase).href,
+  );
+  for (const t of [roadMap, normal]) {
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.anisotropy = 8;
+  }
+  roadMap.colorSpace = T.SRGBColorSpace;
+  const road = mat("#949b9f", {
+    map: roadMap,
+    normalMap: normal,
+    normalScale: new T.Vector2(0.3, 0.3),
+    roughness: 0.94,
+  });
   for (const x of ROAD_X) add(box(17, 0.1, 410, road, x, 0.02, 0));
   for (const z of ROAD_Z) add(box(270, 0.1, 17, road, 0, 0.025, z));
   // Lanes and junction crossings are geometry, so they remain crisp at street level.
@@ -201,7 +209,13 @@ export function createWorld(scene) {
             h = 9 + Math.floor(rand() * 5) * 4;
           const material = trims[Math.floor(rand() * trims.length)];
           add(box(w, h, d, material, x, h / 2 + 0.3, z));
-          colliders.push({ x, z, hx: w / 2 + 0.2, hz: d / 2 + 0.2 });
+          colliders.push({
+            x,
+            z,
+            hx: w / 2 + 0.32,
+            hz: d / 2 + 0.32,
+            height: h,
+          });
           add(box(w + 0.8, 0.35, d + 0.8, cream, x, h + 0.45, z));
           add(box(w - 1.4, 0.4, d - 1.4, M.sidewalk, x, h + 0.8, z));
           add(box(3, 1.2, 3, M.dark, x + 4, h + 1.3, z));
@@ -340,6 +354,7 @@ export function createWorld(scene) {
       add(box(4, 2.1, 0.12, warmGlass, x, 1.55, z + 28));
       const table = cylinder(0.9, 0.9, 0.1, M.trunk, 16);
       table.position.set(x, 0.9, z + 31);
+      colliders.push({ x, z: z + 31, hx: 2, hz: 1, height: 1.2 });
       add(table);
       const stand = cylinder(0.07, 0.09, 0.85, M.dark, 8);
       stand.position.set(x, 0.45, z + 31);
@@ -353,6 +368,7 @@ export function createWorld(scene) {
   for (let z = -175; z < 190; z += 35) {
     const planter = cylinder(0.65, 0.5, 0.7, cream, 12);
     planter.position.set(132, 0.55, z);
+    colliders.push({ x: 132, z, hx: 0.7, hz: 0.7, height: 1.8 });
     add(planter);
     const bush = new T.Mesh(new T.IcosahedronGeometry(0.95, 1), M.leaf);
     bush.position.set(132, 1.25, z);
@@ -381,10 +397,12 @@ export function createWorld(scene) {
     for (const x of [135, 150]) {
       const p = palm(9 + rand() * 3, (rand() - 0.5) * 2);
       p.position.set(x, 0.3, z + (x === 150 ? 6 : 0));
+      colliders.push({ x, z: p.position.z, hx: 0.45, hz: 0.45, height: 9 });
       p.rotation.y = rand() * 6;
       add(p);
     }
     add(box(2, 0.25, 0.7, mat("#9c7769"), 145, 0.8, z));
+    colliders.push({ x: 145, z, hx: 1.05, hz: 0.4, height: 1 });
     for (const x of [144.4, 145.6]) add(box(0.13, 0.8, 0.6, M.dark, x, 0.4, z));
   }
   for (let ix = 0; ix < 3; ix++)
@@ -394,6 +412,7 @@ export function createWorld(scene) {
       for (const side of [-1, 1]) {
         const p = palm(8 + rand() * 2, 0.8);
         p.position.set(x + side * 28, 0.3, z);
+        colliders.push({ x: p.position.x, z, hx: 0.45, hz: 0.45, height: 8 });
         add(p);
       }
     }
@@ -402,6 +421,7 @@ export function createWorld(scene) {
     for (let z = -190; z < 200; z += 40) {
       const pole = cylinder(0.08, 0.12, 6, M.dark, 6);
       pole.position.set(x + 10, 3, z);
+      colliders.push({ x: x + 10, z, hx: 0.18, hz: 0.18, height: 6 });
       add(pole);
       add(box(1.9, 0.08, 0.1, M.dark, x + 9.2, 6, z));
       add(box(0.75, 0.12, 0.38, lampMat, x + 8.5, 5.95, z));
@@ -453,61 +473,142 @@ export function createWorld(scene) {
   gs.rotation.y = Math.PI;
   garage.add(gs);
   staticGroup.add(garage);
-  colliders.push({ x: 104, z: 26, hx: 8.5, hz: 5.5 });
+  colliders.push({ x: 104, z: 26, hx: 8.5, hz: 5.5, height: 6 });
+  staticGroup.updateMatrixWorld(true);
+  staticGroup.traverse((o) => {
+    if (o.isMesh && o.material === road) {
+      const pos = o.geometry.attributes.position,
+        uv = o.geometry.attributes.uv,
+        p = new T.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        p.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+        uv.setXY(i, p.x * 0.18, p.z * 0.18);
+      }
+    }
+  });
   scene.add(batchStatic(staticGroup));
-  for (let i = 0; i < 12; i++) {
-    const model = car(["#ebe0c8", "#697f93", "#d59480", "#82a59a"][i % 4]);
-    const vertical = i % 2 === 0;
+  for (let i = 0; i < 16; i++) {
+    const id = VEHICLES[i % VEHICLES.length].id,
+      model = car(id);
+    const vertical = i % 2 === 0,
+      direction = i % 4 < 2 ? 1 : -1;
     model.position.set(
-      vertical ? ROAD_X[i % 4] + 4 : -126 + i * 23,
+      vertical
+        ? ROAD_X[Math.floor(i / 4)] + direction * 4
+        : -115 + (i % 8) * 29,
       0,
-      vertical ? -190 + i * 32 : ROAD_Z[i % 5] - 4,
+      vertical
+        ? -165 + (i % 4) * 90
+        : ROAD_Z[Math.floor(i / 4)] - direction * 4,
     );
+    model.rotation.y = vertical
+      ? direction > 0
+        ? 0
+        : Math.PI
+      : direction > 0
+        ? Math.PI / 2
+        : -Math.PI / 2;
+    if (
+      blockedBody(
+        vehicleBody(model),
+        colliders.concat(traffic.map((t) => vehicleBody(t.model))),
+      )
+    )
+      continue;
     scene.add(model);
-    traffic.push({
-      model,
-      vertical,
-      direction: i % 3 === 0 ? -1 : 1,
-      speed: 5 + rand() * 4,
-    });
+    traffic.push({ model, vertical, direction, speed: 6 + rand() * 3 });
   }
-  for (let i = 0; i < 20; i++) {
-    const model = person(["#f8dac2", "#8bb6b1", "#e8a3aa", "#5b7492"][i % 4]);
-    model.position.set(i < 12 ? 143 : ROAD_X[i % 4] + 11, 0, -190 + i * 19);
+  for (let i = 0; i < 8; i++) {
+    const model = car(VEHICLES[i].id);
+    model.position.set(127, 0, -140 + i * 39);
+    model.rotation.y = Math.PI;
+    if (
+      blockedBody(
+        vehicleBody(model),
+        colliders.concat(traffic.map((t) => vehicleBody(t.model))),
+      )
+    )
+      continue;
     scene.add(model);
-    pedestrians.push({ model, speed: 0.7 + rand() * 0.7, phase: rand() * 7 });
+    parked.push({ model });
+  }
+  for (let i = 0; i < 16; i++) {
+    const model = person();
+    model.position.set(i < 12 ? 140 : ROAD_X[i % 4] + 11, 0, -185 + i * 23);
+    scene.add(model);
+    pedestrians.push({ model, speed: 0.7 + rand() * 0.5 });
   }
   return {
     colliders,
     traffic,
+    parked,
     pedestrians,
     sunlight,
     ocean,
     sky,
-    update(dt, time, player) {
+    update(dt, time, player, playerCar, police) {
       ocean.material.uniforms.time.value = time;
       sunlight.position.set(player.x + 85, 110, player.z - 95);
       sunlight.target.position.set(player.x, 0, player.z);
+      const extras = [
+        vehicleBody(playerCar),
+        ...(police?.visible ? [vehicleBody(police)] : []),
+      ];
+      if (!player.driving) extras.push({ ...player, hx: 0.4, hz: 0.4 });
       for (const t of traffic) {
-        const p = t.model.position;
-        if (t.vertical) {
-          p.z += dt * t.speed * t.direction;
-          if (Math.abs(p.z) > 200) p.z = -Math.sign(p.z) * 199;
-          t.model.rotation.y = t.direction > 0 ? 0 : Math.PI;
-        } else {
-          p.x += dt * t.speed * t.direction;
-          if (Math.abs(p.x) > 132) p.x = -Math.sign(p.x) * 131;
-          t.model.rotation.y = t.direction > 0 ? Math.PI / 2 : -Math.PI / 2;
+        const p = t.model.position,
+          body = vehicleBody(t.model);
+        const solids = colliders.concat(
+          extras,
+          parked.map((v) => vehicleBody(v.model)),
+          traffic.filter((v) => v !== t).map((v) => vehicleBody(v.model)),
+        );
+        const nearPedestrian =
+          !player.driving && Math.hypot(player.x - p.x, player.z - p.z) < 8;
+        const speed = nearPedestrian ? 0 : t.speed;
+        const moved = moveBody(
+          body,
+          Math.sin(body.heading) * speed * dt,
+          Math.cos(body.heading) * speed * dt,
+          0,
+          solids,
+        );
+        p.set(moved.x, 0, moved.z);
+        const edge = t.vertical ? Math.abs(p.z) > 198 : Math.abs(p.x) > 130;
+        if (edge) {
+          const next = {
+            ...body,
+            x: t.vertical ? p.x : -Math.sign(p.x) * 128,
+            z: t.vertical ? -Math.sign(p.z) * 197 : p.z,
+          };
+          if (!blockedBody(next, solids)) p.set(next.x, 0, next.z);
         }
         for (const w of t.model.userData.wheels)
-          w.rotation.x += dt * t.speed * 2;
+          w.rotation.x +=
+            ((moved.hit ? 0 : speed) * dt) / t.model.userData.radius;
       }
       for (const p of pedestrians) {
-        p.model.position.z += dt * p.speed;
-        if (p.model.position.z > 200) p.model.position.z = -199;
-        for (let i = 0; i < 2; i++)
-          p.model.userData.legs[i].rotation.x =
-            Math.sin(time * 5 + p.phase + i * Math.PI) * 0.3;
+        const heading = p.model.rotation.y;
+        const moved = moveBody(
+          {
+            x: p.model.position.x,
+            z: p.model.position.z,
+            heading,
+            hx: 0.28,
+            hz: 0.28,
+          },
+          Math.sin(heading) * dt * p.speed,
+          Math.cos(heading) * dt * p.speed,
+          0,
+          colliders.concat(
+            extras,
+            traffic.map((t) => vehicleBody(t.model)),
+            parked.map((t) => vehicleBody(t.model)),
+          ),
+        );
+        p.model.position.set(moved.x, 0, moved.z);
+        if (moved.hit) p.model.rotation.y += Math.PI;
+        animatePerson(p.model, dt, "walk");
       }
     },
   };

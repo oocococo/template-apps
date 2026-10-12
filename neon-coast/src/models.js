@@ -1,4 +1,7 @@
 import * as T from "three";
+import { VEHICLES } from "./state.js";
+import { detailedCar } from "./vehicle-assets.js";
+export { person } from "./characters.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 export const mat = (color, extra = {}) =>
@@ -65,158 +68,388 @@ export function batchStatic(group) {
   }
   return out;
 }
-export function car(color = "#e9789b", sport = false) {
-  const g = new T.Group();
+export function car(id = "comet", color) {
+  const v = VEHICLES.find((v) => v.id === id);
+  if (id === "comet") return detailedCar(color || v.color);
+  const g = new T.Group(),
+    fixed = new T.Group();
   const paint = new T.MeshPhysicalMaterial({
-    color,
-    roughness: 0.24,
-    metalness: 0.65,
+    color: color || v.color,
+    roughness: 0.23,
+    metalness: 0.72,
     clearcoat: 1,
-    clearcoatRoughness: 0.15,
+    clearcoatRoughness: 0.12,
   });
-  const glass = materials.glass;
-  const light = mat("#ffe3bd", { emissive: "#ffd0a0", emissiveIntensity: 1.8 });
-  const red = mat("#e72955", { emissive: "#ff173b", emissiveIntensity: 2 });
-  // The coupe silhouette tapers at both ends, with an inset cabin and split rear grille.
-  const shape = new T.Shape();
-  shape.moveTo(-0.94, -2.1);
-  shape.lineTo(0.94, -2.1);
-  shape.quadraticCurveTo(1.12, -2.04, 1.13, -1.72);
-  shape.lineTo(1.13, 1.65);
-  shape.quadraticCurveTo(1.1, 2.08, 0.85, 2.15);
-  shape.lineTo(-0.85, 2.15);
-  shape.quadraticCurveTo(-1.1, 2.08, -1.13, 1.65);
-  shape.lineTo(-1.13, -1.72);
-  shape.quadraticCurveTo(-1.12, -2.04, -0.94, -2.1);
-  const body = new T.Mesh(
-    new T.ExtrudeGeometry(shape, {
-      depth: 0.53,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      steps: 1,
-      bevelSize: 0.1,
-      bevelThickness: 0.08,
-    }),
-    paint,
-  );
-  body.rotation.x = -Math.PI / 2;
-  body.position.y = 0.53;
-  body.castShadow = true;
-  g.add(body);
-  g.add(box(1.91, 0.1, 3.85, materials.dark, 0, 0.45, 0));
-  const cabinGeo = new T.BufferGeometry();
-  const v = [
-    -0.91, 1.07, 0.94, 0.91, 1.07, 0.94, 0.72, 1.57, 0.32, -0.72, 1.57, 0.32,
-    -0.72, 1.57, -0.67, 0.72, 1.57, -0.67, 0.91, 1.07, -1.18, -0.91, 1.07,
-    -1.18,
-  ];
-  cabinGeo.setAttribute("position", new T.Float32BufferAttribute(v, 3));
-  cabinGeo.setIndex([
-    0, 1, 2, 0, 2, 3, 1, 6, 5, 1, 5, 2, 6, 7, 4, 6, 4, 5, 7, 0, 3, 7, 3, 4, 3,
-    2, 5, 3, 5, 4,
-  ]);
-  cabinGeo.computeVertexNormals();
-  const cabin = new T.Mesh(
-    cabinGeo,
-    new T.MeshPhysicalMaterial({
-      color: "#345665",
-      roughness: 0.09,
-      metalness: 0.9,
-      clearcoat: 1,
-    }),
-  );
-  cabin.castShadow = true;
-  g.add(cabin);
-  const roof = new T.Mesh(
-    new RoundedBoxGeometry(1.48, 0.12, 1.06, 3, 0.08),
-    paint,
-  );
-  roof.position.set(0, 1.59, -0.18);
-  g.add(roof);
-  function bar(a, b, r, material) {
+  const glass = new T.MeshPhysicalMaterial({
+    color: "#24343c",
+    metalness: 0.45,
+    roughness: 0.08,
+    clearcoat: 1,
+  });
+  const trim = materials.dark,
+    chrome = materials.chrome;
+  const w = v.width / 2,
+    l = v.length / 2,
+    h = v.height;
+  const tall = ["suv", "van", "pickup"].includes(v.style),
+    exotic = ["super", "wedge"].includes(v.style);
+  const radius = tall ? 0.49 : 0.38,
+    axle = l * 0.64,
+    belt = tall ? 1.14 : exotic ? 0.72 : 0.88;
+  const add = (o) => (fixed.add(o), o);
+  const rounded = (ww, hh, dd, m, x, y, z, r = 0.06) => {
+    const o = new T.Mesh(new RoundedBoxGeometry(ww, hh, dd, 3, r), m);
+    o.position.set(x, y, z);
+    o.castShadow = true;
+    return add(o);
+  };
+  function beam(a, b, r, m) {
     const delta = new T.Vector3(...b).sub(new T.Vector3(...a));
-    const mesh = cylinder(r, r, delta.length(), material, 8);
-    mesh.position.copy(
+    const o = cylinder(r, r, delta.length(), m, 8);
+    o.position.copy(
       new T.Vector3(...a).add(new T.Vector3(...b)).multiplyScalar(0.5),
     );
-    mesh.quaternion.setFromUnitVectors(
-      new T.Vector3(0, 1, 0),
-      delta.normalize(),
+    o.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), delta.normalize());
+    add(o);
+  }
+  function cabin(front, back, topFront, topBack, top) {
+    const bw = w * 0.87,
+      tw = w * 0.72;
+    const verts = [
+      -bw,
+      belt,
+      front,
+      bw,
+      belt,
+      front,
+      tw,
+      top,
+      topFront,
+      -tw,
+      top,
+      topFront,
+      -tw,
+      top,
+      topBack,
+      tw,
+      top,
+      topBack,
+      bw,
+      belt,
+      back,
+      -bw,
+      belt,
+      back,
+    ];
+    const geo = new T.BufferGeometry();
+    geo.setAttribute("position", new T.Float32BufferAttribute(verts, 3));
+    geo.setIndex([
+      0, 1, 2, 0, 2, 3, 1, 6, 5, 1, 5, 2, 6, 7, 4, 6, 4, 5, 7, 0, 3, 7, 3, 4, 3,
+      2, 5, 3, 5, 4,
+    ]);
+    geo.computeVertexNormals();
+    add(new T.Mesh(geo, glass));
+    rounded(
+      tw * 2 + 0.08,
+      0.09,
+      topFront - topBack + 0.06,
+      paint,
+      0,
+      top + 0.025,
+      (topFront + topBack) / 2,
     );
-    g.add(mesh);
+    for (const side of [-1, 1]) {
+      beam([side * bw, belt, front], [side * tw, top, topFront], 0.035, paint);
+      beam([side * bw, belt, back], [side * tw, top, topBack], 0.06, paint);
+      if (v.style === "sedan" || tall)
+        beam([side * bw, belt, -0.15], [side * tw, top, -0.15], 0.036, trim);
+    }
+  }
+  // Recessed chassis and wheel-arch side panels keep the wheels clear of the bodywork.
+  rounded(w * 1.48, 0.25, l * 1.9, trim, 0, radius * 0.85, 0);
+  rounded(w * 1.94, 0.22, l * 1.98, paint, 0, belt - 0.03, 0, 0.1);
+  for (const end of [-1, 1])
+    rounded(
+      w * 1.9,
+      belt - 0.33,
+      0.38,
+      paint,
+      0,
+      (belt + 0.33) / 2,
+      end * (l - 0.16),
+      0.09,
+    );
+  const sideShape = new T.Shape();
+  sideShape.moveTo(-l, 0.36);
+  sideShape.lineTo(-l, belt);
+  sideShape.lineTo(l, belt);
+  sideShape.lineTo(l, 0.36);
+  sideShape.lineTo(axle + radius + 0.08, 0.36);
+  sideShape.absarc(axle, radius, radius + 0.09, 0, Math.PI, false);
+  sideShape.lineTo(-axle + radius + 0.09, 0.36);
+  sideShape.absarc(-axle, radius, radius + 0.09, 0, Math.PI, false);
+  sideShape.lineTo(-l, 0.36);
+  const sideGeo = new T.ExtrudeGeometry(sideShape, {
+    depth: 0.075,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    steps: 1,
+    bevelSize: 0.035,
+    bevelThickness: 0.035,
+    curveSegments: 16,
+  });
+  for (const side of [-1, 1]) {
+    const panel = new T.Mesh(sideGeo, paint);
+    panel.rotation.y = Math.PI / 2;
+    panel.position.x = side * (w - 0.05);
+    add(panel);
+    rounded(0.07, 0.1, axle * 1.18, trim, side * w, 0.31, 0, 0.025);
+  }
+  if (v.style === "van") {
+    rounded(
+      w * 1.9,
+      h - belt,
+      l * 1.16,
+      paint,
+      0,
+      (h + belt) / 2,
+      -l * 0.38,
+      0.13,
+    );
+    cabin(l * 0.83, -0.18, l * 0.55, -0.19, h - 0.02);
+    for (const side of [-1, 1]) {
+      rounded(0.012, 0.018, 1.75, trim, side * (w - 0.01), 1.27, -0.8, 0.005);
+      rounded(0.04, 0.045, 0.26, chrome, side * w, 1.15, -0.5, 0.01);
+    }
+    rounded(
+      0.025,
+      h - belt - 0.1,
+      0.02,
+      trim,
+      0,
+      (h + belt) / 2,
+      -l - 0.02,
+      0.005,
+    );
+  } else if (v.style === "pickup") {
+    cabin(l * 0.59, -0.15, l * 0.36, -0.35, h - 0.05);
+    rounded(w * 1.6, 0.04, l * 0.77, trim, 0, belt - 0.13, -l * 0.53);
+    for (const side of [-1, 1])
+      rounded(0.17, 0.36, l * 0.94, paint, side * w, belt + 0.02, -l * 0.49);
+    rounded(w * 1.95, 0.34, 0.14, paint, 0, belt, -l + 0.03);
+    for (let i = -3; i <= 3; i++)
+      rounded(
+        0.035,
+        0.025,
+        l * 0.7,
+        chrome,
+        i * 0.22,
+        belt - 0.095,
+        -l * 0.52,
+        0.01,
+      );
+  } else if (v.style === "roadster") {
+    rounded(w * 1.68, 0.04, 1.65, trim, 0, belt + 0.06, -0.1);
+    for (const side of [-1, 1]) {
+      rounded(0.59, 0.18, 0.67, mat("#aa7152"), side * 0.46, belt + 0.12, -0.1);
+      rounded(
+        0.58,
+        0.45,
+        0.15,
+        mat("#aa7152"),
+        side * 0.46,
+        belt + 0.32,
+        -0.45,
+      );
+      beam(
+        [side * w * 0.85, belt, 0.65],
+        [side * w * 0.72, h, 0.32],
+        0.05,
+        paint,
+      );
+    }
+    const screen = box(w * 1.45, 0.47, 0.025, glass, 0, h - 0.22, 0.45);
+    screen.rotation.x = -0.5;
+    add(screen);
+    rounded(w * 1.5, 0.04, 0.06, chrome, 0, h + 0.005, 0.32, 0.015);
+  } else if (v.style === "suv") {
+    cabin(l * 0.58, -l * 0.87, l * 0.3, -l * 0.79, h - 0.07);
+    for (const side of [-1, 1])
+      beam(
+        [side * w * 0.65, h + 0.08, -l * 0.74],
+        [side * w * 0.65, h + 0.08, l * 0.26],
+        0.04,
+        chrome,
+      );
+    for (const z of [-1.3, 0.3])
+      rounded(w * 1.35, 0.045, 0.055, trim, 0, h + 0.12, z, 0.015);
+    const spare = cylinder(0.43, 0.43, 0.22, materials.rubber, 32);
+    spare.rotation.x = Math.PI / 2;
+    spare.position.set(0, 1.25, -l - 0.08);
+    add(spare);
+  } else {
+    const rear = v.style === "sedan" ? -l * 0.62 : -l * 0.55;
+    cabin(
+      l * (exotic ? 0.53 : 0.42),
+      rear,
+      l * 0.13,
+      exotic ? -l * 0.24 : -l * 0.36,
+      h - 0.06,
+    );
+    if (v.style === "super") {
+      for (const side of [-1, 1]) {
+        rounded(0.06, 0.21, 0.7, trim, side * (w + 0.015), 0.64, -0.55);
+        rounded(
+          0.06,
+          0.045,
+          0.55,
+          chrome,
+          side * (w + 0.047),
+          0.65,
+          -0.55,
+          0.012,
+        );
+      }
+      rounded(w * 1.85, 0.09, 0.38, paint, 0, 1.2, -l * 0.86);
+      for (const side of [-1, 1])
+        rounded(0.07, 0.36, 0.12, trim, side * 0.64, 1.04, -l * 0.86);
+    }
+    if (v.style === "wedge")
+      for (let i = 0; i < 7; i++)
+        rounded(
+          w * 1.4,
+          0.025,
+          0.06,
+          trim,
+          0,
+          belt + 0.11,
+          -l * 0.5 - i * 0.11,
+          0.012,
+        );
   }
   for (const side of [-1, 1]) {
-    bar([side * 0.91, 1.07, 0.94], [side * 0.72, 1.58, 0.32], 0.045, paint);
-    bar([side * 0.91, 1.07, -1.18], [side * 0.72, 1.58, -0.67], 0.065, paint);
-    bar([side * 0.88, 1.09, -0.48], [side * 0.72, 1.57, -0.4], 0.035, paint);
-    g.add(box(0.24, 0.11, 0.26, paint, side * 1.22, 1.18, 0.53));
-    g.add(box(0.08, 0.045, 0.29, materials.chrome, side * 1.24, 0.9, -0.12));
-    for (let j = 0; j < 5; j++)
-      g.add(
-        box(
-          0.025,
-          0.035,
-          0.75,
-          materials.dark,
-          side * 1.235,
-          0.65 + j * 0.075,
-          -0.7,
-        ),
+    rounded(0.22, 0.11, 0.32, paint, side * (w + 0.06), belt + 0.21, 0.63);
+    rounded(
+      0.08,
+      0.03,
+      0.25,
+      chrome,
+      side * (w + 0.055),
+      belt - 0.04,
+      -0.2,
+      0.01,
+    );
+    if (v.style === "sedan")
+      rounded(
+        0.06,
+        0.03,
+        0.25,
+        chrome,
+        side * (w + 0.05),
+        belt - 0.04,
+        -0.98,
+        0.01,
       );
-    g.add(box(0.022, 0.025, 2.9, materials.dark, side * 1.237, 0.59, 0));
   }
-  for (let j = 0; j < 9; j++)
-    g.add(box(0.075, 0.02, 0.49, materials.dark, (j - 4) * 0.14, 1.15, 1.28));
-  g.add(box(1.88, 0.035, 0.08, materials.dark, 0, 1.12, 1.68));
-  for (const x of [-0.78, 0.78]) {
-    g.add(box(0.53, 0.19, 0.1, light, x, 0.92, 2.23));
-    g.add(box(0.58, 0.16, 0.09, red, x, 0.91, -2.22));
+  const white = mat("#fff0d4", { emissive: "#ffedc7", emissiveIntensity: 0.7 }),
+    red = mat("#a51622", { emissive: "#ff2932", emissiveIntensity: 1.2 });
+  for (const side of [-1, 1]) {
+    rounded(
+      w * 0.55,
+      exotic ? 0.075 : 0.16,
+      0.07,
+      white,
+      side * w * 0.63,
+      belt - 0.1,
+      l + 0.015,
+      0.025,
+    );
+    rounded(
+      w * 0.63,
+      0.09,
+      0.07,
+      red,
+      side * w * 0.62,
+      belt - 0.1,
+      -l - 0.018,
+      0.025,
+    );
+    const exhaust = cylinder(0.065, 0.065, 0.16, chrome, 12);
+    exhaust.rotation.x = Math.PI / 2;
+    exhaust.position.set(side * w * 0.73, 0.35, -l - 0.04);
+    add(exhaust);
   }
-  g.add(box(1.9, 0.12, 0.15, materials.chrome, 0, 0.58, 2.23));
-  g.add(box(1.9, 0.12, 0.15, materials.chrome, 0, 0.58, -2.23));
-  g.add(box(0.8, 0.21, 0.02, mat("#efe8d1"), 0, 0.68, -2.32));
-  for (let i = 0; i < 6; i++)
-    g.add(box(1.35, 0.035, 0.06, materials.dark, 0, 1.11, -1.27 - i * 0.11));
-  if (sport) {
-    g.add(box(2.25, 0.12, 0.37, paint, 0, 1.35, -1.95));
-    for (const x of [-0.7, 0.7])
-      g.add(box(0.08, 0.3, 0.12, materials.dark, x, 1.2, -1.93));
-  }
+  rounded(w * 1.85, 0.15, 0.14, trim, 0, 0.45, l + 0.035);
+  rounded(w * 1.85, 0.14, 0.13, trim, 0, 0.43, -l - 0.035);
+  for (let i = 0; i < 3; i++)
+    rounded(
+      w * 0.83,
+      0.02,
+      0.03,
+      chrome,
+      0,
+      0.48 + i * 0.055,
+      l + 0.112,
+      0.005,
+    );
+  rounded(0.5, 0.15, 0.025, mat("#e9e3cf"), 0, 0.63, -l - 0.105, 0.01);
   const wheels = [];
-  for (const z of [-1.35, 1.35])
-    for (const x of [-1.12, 1.12]) {
+  for (const z of [-axle, axle])
+    for (const side of [-1, 1]) {
       const wheel = new T.Group();
-      const tire = cylinder(0.43, 0.43, 0.29, materials.rubber, 32);
-      tire.rotation.z = Math.PI / 2;
+      const tire = new T.Mesh(
+        new T.TorusGeometry(radius - 0.105, 0.105, 12, 40),
+        materials.rubber,
+      );
+      tire.rotation.y = Math.PI / 2;
       wheel.add(tire);
-      const rim = cylinder(0.29, 0.29, 0.31, materials.chrome, 12);
-      rim.rotation.z = Math.PI / 2;
-      wheel.add(rim);
-      const hub = cylinder(0.12, 0.12, 0.33, materials.dark, 12);
-      hub.rotation.z = Math.PI / 2;
-      wheel.add(hub);
-      wheel.position.set(x, 0.44, z);
-      g.add(wheel);
-      for (let k = 0; k < 5; k++) {
+      const inner = cylinder(radius - 0.12, radius - 0.12, 0.2, trim, 32);
+      inner.rotation.z = Math.PI / 2;
+      wheel.add(inner);
+      const brake = cylinder(
+        radius * 0.61,
+        radius * 0.61,
+        0.022,
+        mat("#7e8284", { metalness: 0.8, roughness: 0.42 }),
+        24,
+      );
+      brake.rotation.z = Math.PI / 2;
+      brake.position.x = side * 0.055;
+      wheel.add(brake);
+      for (let k = 0; k < 10; k++) {
         const spoke = box(
-          0.025,
-          0.49,
-          0.045,
-          materials.chrome,
-          x > 0 ? 0.175 : -0.175,
+          0.035,
+          radius * 0.77,
+          0.028,
+          chrome,
+          side * 0.115,
           0,
           0,
         );
         spoke.rotation.x = (k * Math.PI) / 5;
+        spoke.position.y = Math.cos((k * Math.PI) / 5) * radius * 0.36;
+        spoke.position.z = Math.sin((k * Math.PI) / 5) * radius * 0.36;
         wheel.add(spoke);
       }
+      const rim = new T.Mesh(
+        new T.TorusGeometry(radius - 0.115, 0.018, 6, 32),
+        chrome,
+      );
+      rim.rotation.y = Math.PI / 2;
+      rim.position.x = side * 0.12;
+      wheel.add(rim);
+      wheel.position.set(side * (w - 0.015), radius, z);
+      g.add(wheel);
       wheels.push(wheel);
     }
-  const fixed = new T.Group();
-  for (const child of [...g.children])
-    if (!wheels.includes(child)) fixed.add(child);
   g.add(batchStatic(fixed));
-  g.userData = { wheels, paint };
+  g.userData = {
+    wheels,
+    paint,
+    vehicleId: id,
+    footprint: { hx: w + 0.2, hz: l + (v.style === "suv" ? 0.26 : 0.15) },
+    radius,
+  };
   return g;
 }
 export function palm(height = 10, lean = 0.8) {
@@ -261,24 +494,6 @@ export function palm(height = 10, lean = 0.8) {
     mesh.castShadow = true;
     g.add(mesh);
   }
-  return g;
-}
-export function person(shirt = "#faf1da") {
-  const g = new T.Group();
-  const skin = mat("#bd8d73");
-  g.add(box(0.45, 0.7, 0.26, mat(shirt), 0, 1.07, 0));
-  const head = new T.Mesh(new T.SphereGeometry(0.18, 8, 8), skin);
-  head.position.y = 1.65;
-  g.add(head);
-  g.add(box(0.32, 0.14, 0.31, mat("#26232e"), 0, 1.78, 0));
-  const legs = [];
-  for (const x of [-0.13, 0.13]) {
-    const leg = box(0.16, 0.64, 0.19, materials.dark, x, 0.4, 0);
-    g.add(leg);
-    legs.push(leg);
-    g.add(box(0.13, 0.62, 0.14, skin, x * 2.4, 1, 0));
-  }
-  g.userData.legs = legs;
   return g;
 }
 export function textSign(text, color = "#ffb6d4", bg = "#273c53", width = 512) {

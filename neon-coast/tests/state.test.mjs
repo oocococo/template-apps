@@ -5,7 +5,6 @@ import {
   purchase,
   upgrade,
   completeMission,
-  blocked,
 } from "../src/state.js";
 test("mission rewards fund a vehicle purchase and survive JSON save restore", () => {
   const s = initialState();
@@ -31,12 +30,4 @@ test("insufficient cash does not alter ownership; upgrades spend the displayed c
   assert.equal(s.cash, 100);
   assert.equal(s.upgrade, 3);
   assert.equal(upgrade(s).ok, false);
-});
-test("street movement respects building and coast collision volumes", () => {
-  const buildings = [{ x: 20, z: 20, hx: 10, hz: 10 }];
-  assert.equal(blocked(20, 20, buildings, 1.25), true);
-  assert.equal(blocked(31, 20, buildings, 1.25), true);
-  assert.equal(blocked(33, 20, buildings, 1.25), false);
-  assert.equal(blocked(155, 20, buildings, 1.25), true);
-  assert.equal(blocked(120, 18, buildings, 1.25), false);
 });
