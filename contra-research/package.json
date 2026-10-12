@@ -1,0 +1,1 @@
+{"name":"contra-research","version":"1.0.0","private":true,"type":"module","scripts":{"build":"node build.mjs","test":"node --test test/*.test.mjs"},"dependencies":{"@tianacloud/serverless":"0.1.0-beta.2","jsnes":"2.1.0"},"devDependencies":{"esbuild":"0.28.2","playwright":"1.64.0"}}

@@ -1,0 +1,32 @@
+{
+  "name": "contra-research",
+  "display_name": "魂斗罗 · 单人研究应用",
+  "description": "基于 JSNES 的单人魂斗罗 NES 浏览器游戏工程，包含 Contra USA ROM，支持键盘、触屏、手柄、音频以及三个 Tiana SQLite 即时存档位。按 ROM SHA-256 隔离存档，刷新后可恢复。游戏内容不受应用源码的开源许可覆盖。",
+  "variables": [
+    {
+      "name": "SQLITE_INSTANCE_ID",
+      "placeholder": "__TIANA_SQLITE_INSTANCE_ID_9c371ddc__",
+      "description": "Agent 为本次应用创建 SQLite 实例后填入实际 ID；用户明确指定时复用其已有实例。",
+      "files": [
+        "source.json"
+      ]
+    },
+    {
+      "name": "GIT_INSTANCE_ID",
+      "placeholder": "__TIANA_GIT_INSTANCE_ID_c8ec23fa__",
+      "description": "Agent 为本次应用创建 Git 实例后填入实际 ID；用户明确指定时复用其已有实例。",
+      "files": [
+        "source.json"
+      ]
+    },
+    {
+      "name": "WEB_ID",
+      "placeholder": "__TIANA_WEB_ID_a5e82bc4__",
+      "description": "为本次应用创建 Web 项目后填入实际 Web ID。",
+      "files": [
+        "source.json"
+      ]
+    }
+  ],
+  "schema": "schema.sql"
+}

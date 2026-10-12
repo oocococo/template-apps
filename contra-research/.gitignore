@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.nes
+*.zip
+private/*
+!private/contra.nes

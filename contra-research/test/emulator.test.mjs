@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {NES,Controller} from 'jsnes';
+import {encodeState,decodeState} from '../src/storage.js';
+const rom=readFileSync(new URL('../private/contra.nes',import.meta.url));
+test('Contra runs with video/audio, and save state resumes the same CPU and video trajectory',async()=>{
+  let frame,samples=0;
+  const nes=new NES({onFrame:value=>frame=Array.from(value),onAudioSample:()=>samples++});
+  nes.loadROM(rom);
+  for(let i=0;i<200;i++)nes.frame();
+  nes.buttonDown(1,Controller.BUTTON_START);nes.frame();nes.buttonUp(1,Controller.BUTTON_START);
+  for(let i=0;i<180;i++)nes.frame();
+  assert.ok(new Set(frame).size>8,'visible game image');assert.ok(samples>10000,'audio generated');
+  const encoded=await encodeState(nes.toJSON());
+  const snapshot=await decodeState(encoded);
+  for(let i=0;i<30;i++)nes.frame();
+  const expectedPC=nes.cpu.REG_PC,expectedFrame=frame;
+  const restored=new NES({onFrame:value=>frame=Array.from(value)});restored.loadROM(rom);restored.fromJSON(snapshot);
+  for(let i=0;i<30;i++)restored.frame();
+  assert.equal(restored.cpu.REG_PC,expectedPC);assert.deepEqual(frame,expectedFrame);
+  console.log(`Compressed state: ${encoded.length} characters; audio samples: ${samples}`);
+});
