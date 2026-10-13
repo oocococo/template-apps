@@ -73,7 +73,7 @@ export function revisionGuard(revision: number, writeId?: string): Statement {
     : { sql: 'UPDATE zhiji_state SET facts_revision=CASE WHEN facts_revision=? THEN facts_revision ELSE NULL END WHERE id=1', args: [revision] };
 }
 export const finalRelations: Statement = { sql: `UPDATE zhiji_state SET facts_revision=NULL WHERE id=1 AND (
-  EXISTS(SELECT 1 FROM zhiji_daily_logs d WHERE d.bleeding_type='MENSTRUATION' AND NOT EXISTS(SELECT 1 FROM zhiji_periods p WHERE p.start_date<=d.date AND (p.end_date IS NULL OR p.end_date>=d.date)))
-  OR EXISTS(SELECT 1 FROM zhiji_daily_logs d JOIN zhiji_periods p ON p.start_date<=d.date AND (p.end_date IS NULL OR p.end_date>=d.date) WHERE d.bleeding_type IN ('SPOTTING','UNKNOWN'))
+  EXISTS(SELECT 1 FROM zhiji_daily_logs d WHERE d.bleeding_type='MENSTRUATION' AND NOT EXISTS(SELECT 1 FROM zhiji_periods p WHERE p.start_date<=d.date AND (CASE WHEN p.end_unknown=1 THEN p.start_date ELSE COALESCE(p.end_date,'9999-12-31') END)>=d.date))
+  OR EXISTS(SELECT 1 FROM zhiji_daily_logs d JOIN zhiji_periods p ON p.start_date<=d.date AND (CASE WHEN p.end_unknown=1 THEN p.start_date ELSE COALESCE(p.end_date,'9999-12-31') END)>=d.date WHERE d.bleeding_type IN ('SPOTTING','UNKNOWN'))
   OR EXISTS(SELECT 1 FROM zhiji_absence_confirmations a JOIN zhiji_periods p ON p.id=a.anchor_period_id WHERE a.through_date<p.start_date OR EXISTS(SELECT 1 FROM zhiji_periods n WHERE n.start_date>p.start_date AND n.start_date<=a.through_date))
 )` };

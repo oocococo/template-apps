@@ -9,7 +9,7 @@ const emit = defineEmits<{ select: [date: string] }>();
 const dates = computed(() => { const first = props.month + '-01', weekday = (toDayNumber(first) + 3) % 7; return Array.from({ length: 42 },(_,i) => addDays(first,i - weekday)); });
 function probability(date: string) { return fertility.value?.probabilistic && prediction.value.model && prediction.value.anchorDate ? fertileMass(daysBetween(prediction.value.anchorDate,date),prediction.value.model) : 0; }
 const max = computed(() => Math.max(...dates.value.map(probability),0.001));
-function recorded(date: string) { return !!coveringPeriod(date,state.facts.periods) && (state.facts.periods.find(p => p.startDate <= date && (!p.endDate || p.endDate >= date))!.endDate !== null || state.days[date]?.bleedingType === 'MENSTRUATION' || state.facts.periods.some(p => p.startDate === date)); }
+function recorded(date: string) { const period = coveringPeriod(date,state.facts.periods); return !!period && (period.endDate !== null || state.days[date]?.bleedingType === 'MENSTRUATION' || period.startDate === date); }
 function estimated(date: string) { return !!prediction.value.windowStart && date >= prediction.value.windowStart && date <= prediction.value.windowEnd!; }
 function fertile(date: string) { return fertility.value && date >= fertility.value.windowStart && date <= fertility.value.windowEnd; }
 function inRange(date: string) { return props.rangeStart && date >= props.rangeStart && date <= (props.rangeEnd ?? props.rangeStart); }

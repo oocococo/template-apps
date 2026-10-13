@@ -41,6 +41,30 @@ test('records periods and full daily event lists, refreshes routes, and preserve
   await expect(page.locator('h1')).toHaveText('身体的日历'); await expect(page.locator('.date-detail')).toContainText('10 月 1 日');
   expect(errors).toEqual([]);
 });
+test('records and edits start-only history without showing continuous bleeding',async ({page}) => {
+  await ready(page);
+  for (const start of ['2026-08-01','2026-09-01']) {
+    await page.getByRole('button',{name:'经期开始',exact:true}).click();
+    await page.getByLabel('经期开始日期',{exact:true}).fill(start);
+    await page.getByRole('checkbox',{name:'结束日期未知',exact:true}).check();
+    await expect(page.getByLabel('最后出血日期',{exact:true})).toBeDisabled();
+    await page.getByRole('button',{name:'保存记录',exact:true}).click();
+    await expect(page.locator('.status-message')).toContainText('记录已保存');
+    await page.getByRole('button',{name:'关闭记录面板'}).click();
+  }
+  await page.goto('/#/calendar?date=2026-09-01'); await page.reload();
+  await expect(page.locator('.period-history .record-row')).toHaveCount(2);
+  await expect(page.locator('.period-history')).toContainText('天数未知');
+  await expect(page.locator('.period-history')).not.toContainText('进行中');
+  await expect(page.getByRole('button',{name:'2026 年 9 月 1 日，已记录经期',exact:true})).toHaveClass(/actual/);
+  await expect(page.getByRole('button',{name:'2026 年 9 月 2 日',exact:true})).not.toHaveClass(/actual/);
+  await page.getByRole('button',{name:'编辑／结束经期'}).click();
+  await page.getByRole('checkbox',{name:'结束日期未知',exact:true}).uncheck();
+  await page.getByLabel('最后出血日期',{exact:true}).fill('2026-09-05');
+  await page.getByRole('button',{name:'保存记录',exact:true}).click();
+  await expect(page.locator('.status-message')).toContainText('记录已保存');
+  expect(fixture.db.prepare("SELECT end_unknown,end_date FROM zhiji_periods WHERE start_date='2026-09-01'").get()).toMatchObject({end_unknown:0,end_date:'2026-09-05'});
+});
 test('retains draft input and verifies a lost response without a duplicate write',async ({ page }) => {
   await ready(page); await page.getByRole('button',{ name: '记录今天',exact: true }).click();
   await page.getByLabel('留给自己的话').fill('已经提交，响应丢失'); fixture.failNext('after');
@@ -82,7 +106,7 @@ test('exports complete JSON, previews conflicts, and clears then restores an emp
 });
 test('renders probability estimates, conditional updates, insights, and accessible knowledge on mobile',async ({ page }) => {
   const f = history([28,29,27,28],'2026-05-01');
-  for (const p of f.periods) fixture.db.prepare('INSERT INTO zhiji_periods VALUES(?,?,?,?,?,?,?,?)').run(p.id,p.startDate,p.endDate,+p.gapBefore,p.note,p.source,p.createdAt,p.updatedAt);
+  for (const p of f.periods) fixture.db.prepare('INSERT INTO zhiji_periods(id,start_date,end_date,gap_before,note,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').run(p.id,p.startDate,p.endDate,+p.gapBefore,p.note,p.source,p.createdAt,p.updatedAt);
   await page.setViewportSize({ width: 390,height: 844 }); await ready(page);
   await expect(page.locator('.probability')).toBeVisible(); await expect(page.locator('.phase-copy')).toContainText('核实');
   const card = page.locator('.knowledge-toggle').first(); await card.focus(); await page.keyboard.press('Enter'); await expect(card).toHaveAttribute('aria-expanded','true');

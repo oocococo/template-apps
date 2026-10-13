@@ -134,6 +134,7 @@ type Period = {
   id: string;
   startDate: LocalDate;
   endDate: LocalDate | null;
+  endUnknown: boolean;
   gapBefore: boolean;
   note: string | null;
   source: 'USER' | 'IMPORT';
@@ -230,7 +231,7 @@ type Prediction =
 
 | 表 | 字段与关键约束 |
 |---|---|
-| `zhiji_periods` | `id` 主键；`start_date` UNIQUE NOT NULL；`end_date` 可空；`gap_before` 仅 0／1；`source` 仅 USER／IMPORT；备注和时间戳 |
+| `zhiji_periods` | `id` 主键；`start_date` UNIQUE NOT NULL；`end_date` 可空；`end_unknown` 仅 0／1，为 1 时 `end_date` 必须为空；`gap_before` 仅 0／1；`source` 仅 USER／IMPORT；备注和时间戳 |
 | `zhiji_daily_logs` | `date` 主键；出血性质、流量、评分、睡眠等标量；颜色、症状、情绪、便便、爱爱、白带等 JSON 列；时间戳 |
 | `zhiji_absence_confirmations` | `id` 主键；`anchor_period_id` 引用经期；`through_date`；`created_at`；同锚点同日期唯一 |
 | `zhiji_prediction_snapshots` | `id` 主键；锚点标识；算法版本；BASE／CONDITIONAL；生成时间和生成时本地日期；事实版本；输入及输出 JSON；APP／BACKUP 来源 |
@@ -262,8 +263,8 @@ CHECK (gap_before IN (0, 1))
 INSERT 和 UPDATE 分别建立区间检查触发器。对除当前 ID 外的记录，冲突判定为：
 
 ```sql
-existing.start_date <= COALESCE(NEW.end_date, '9999-12-31')
-AND NEW.start_date <= COALESCE(existing.end_date, '9999-12-31')
+existing.start_date <= CASE WHEN NEW.end_unknown = 1 THEN NEW.start_date ELSE COALESCE(NEW.end_date, '9999-12-31') END
+AND NEW.start_date <= CASE WHEN existing.end_unknown = 1 THEN existing.start_date ELSE COALESCE(existing.end_date, '9999-12-31') END
 ```
 
 出现冲突用 `RAISE(ABORT, 'ZH_PERIOD_OVERLAP')`。开始日唯一约束另行阻止重复日期。

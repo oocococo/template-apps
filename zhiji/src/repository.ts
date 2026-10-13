@@ -6,7 +6,7 @@ const parseJson = (v: string | number | null) => v === null ? null : JSON.parse(
 function camel(row: Row): Record<string, any> {
   return Object.fromEntries(Object.entries(row).map(([k, v]) => [k.replace(/_([a-z])/g, (_, c) => c.toUpperCase()), v]));
 }
-export function periodRow(row: Row): Period { const v = camel(row); return { ...v, gapBefore: Number(v.gapBefore) === 1 } as Period; }
+export function periodRow(row: Row): Period { const v = camel(row); return { ...v, endUnknown: Number(v.endUnknown) === 1, gapBefore: Number(v.gapBefore) === 1 } as Period; }
 export function dailyRow(row: Row): DailyLog {
   const v = camel(row);
   for (const k of ['bloodColors', 'painLocations', 'symptoms', 'moods', 'bowelEvents', 'intimacyEvents', 'discharge']) v[k] = parseJson(v[k]);
@@ -45,8 +45,8 @@ export async function loadSnapshots(anchorId?: string) {
   return { snapshots: r[0].map(snapshotRow), evaluations: r[1].map(evaluationRow) };
 }
 export function insertPeriod(p: Period): Statement {
-  return { sql: 'INSERT INTO zhiji_periods(id,start_date,end_date,gap_before,note,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)',
-    args: [p.id, p.startDate, p.endDate, +p.gapBefore, p.note, p.source, p.createdAt, p.updatedAt] };
+  return { sql: 'INSERT INTO zhiji_periods(id,start_date,end_date,end_unknown,gap_before,note,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)',
+    args: [p.id, p.startDate, p.endDate, +p.endUnknown, +p.gapBefore, p.note, p.source, p.createdAt, p.updatedAt] };
 }
 export function upsertDay(d: DailyLog): Statement {
   const fields = ['date','bleeding_type','flow_level','blood_colors','pain_score','pain_locations','symptoms','moods','sleep_hours','sleep_quality','bowel_events','intimacy_events','discharge','note','created_at','updated_at'];

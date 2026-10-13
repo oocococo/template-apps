@@ -8,7 +8,7 @@ import KnowledgeCard from '../components/KnowledgeCard.vue';
 import PredictionCard from '../components/PredictionCard.vue';
 import Icon from '../components/Icon.vue';
 const knowledge = computed(() => chooseKnowledge(state.today,phase.value,state.days[state.today]));
-const open = computed(() => state.facts.periods.find(p => !p.endDate));
+const open = computed(() => state.facts.periods.find(p => !p.endDate && !p.endUnknown));
 const ringProgress = computed(() => phase.value.cycleDay && prediction.value.mean ? Math.min(1,phase.value.cycleDay / prediction.value.mean) : 0);
 const remaining = computed(() => phase.value.expectedBoundary ? Math.max(0,daysBetween(state.today,phase.value.expectedBoundary)) : null);
 </script>

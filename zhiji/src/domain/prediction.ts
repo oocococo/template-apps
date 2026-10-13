@@ -28,7 +28,7 @@ export function estimateDuration(periods: Period[], prediction: Prediction): Dur
   const closed = [...periods].filter(p => p.endDate).sort((a, b) => a.startDate.localeCompare(b.startDate)).slice(-6);
   if (!closed.length) return null;
   const days = roundHalfUp(median(closed.map(p => daysBetween(p.startDate, p.endDate!) + 1)));
-  const open = periods.find(p => !p.endDate);
+  const open = periods.find(p => !p.endDate && !p.endUnknown);
   return { days, sampleCount: closed.length, currentEnd: open ? addDays(open.startDate, days - 1) : null,
     nextEnd: prediction.centerDate ? addDays(prediction.centerDate, days - 1) : null };
 }

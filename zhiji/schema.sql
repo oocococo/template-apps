@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS zhiji_periods (
   id TEXT PRIMARY KEY NOT NULL,
   start_date TEXT UNIQUE NOT NULL CHECK(start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   end_date TEXT CHECK(end_date IS NULL OR (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND end_date >= start_date)),
+  end_unknown INTEGER NOT NULL DEFAULT 0 CHECK(end_unknown IN (0, 1) AND (end_unknown = 0 OR end_date IS NULL)),
   gap_before INTEGER NOT NULL CHECK(gap_before IN (0, 1)),
   note TEXT,
   source TEXT NOT NULL CHECK(source IN ('USER', 'IMPORT')),
@@ -11,10 +12,10 @@ CREATE TABLE IF NOT EXISTS zhiji_periods (
   updated_at TEXT NOT NULL
 );
 CREATE TRIGGER IF NOT EXISTS zhiji_period_insert BEFORE INSERT ON zhiji_periods
-WHEN EXISTS (SELECT 1 FROM zhiji_periods p WHERE p.start_date <= COALESCE(NEW.end_date, '9999-12-31') AND NEW.start_date <= COALESCE(p.end_date, '9999-12-31'))
+WHEN EXISTS (SELECT 1 FROM zhiji_periods p WHERE p.start_date <= CASE WHEN NEW.end_unknown = 1 THEN NEW.start_date ELSE COALESCE(NEW.end_date, '9999-12-31') END AND NEW.start_date <= CASE WHEN p.end_unknown = 1 THEN p.start_date ELSE COALESCE(p.end_date, '9999-12-31') END)
 BEGIN SELECT RAISE(ABORT, 'ZH_PERIOD_OVERLAP'); END;
 CREATE TRIGGER IF NOT EXISTS zhiji_period_update BEFORE UPDATE ON zhiji_periods
-WHEN EXISTS (SELECT 1 FROM zhiji_periods p WHERE p.id <> NEW.id AND p.start_date <= COALESCE(NEW.end_date, '9999-12-31') AND NEW.start_date <= COALESCE(p.end_date, '9999-12-31'))
+WHEN EXISTS (SELECT 1 FROM zhiji_periods p WHERE p.id <> NEW.id AND p.start_date <= CASE WHEN NEW.end_unknown = 1 THEN NEW.start_date ELSE COALESCE(NEW.end_date, '9999-12-31') END AND NEW.start_date <= CASE WHEN p.end_unknown = 1 THEN p.start_date ELSE COALESCE(p.end_date, '9999-12-31') END)
 BEGIN SELECT RAISE(ABORT, 'ZH_PERIOD_OVERLAP'); END;
 
 CREATE TABLE IF NOT EXISTS zhiji_daily_logs (

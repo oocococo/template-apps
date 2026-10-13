@@ -55,10 +55,11 @@ export function factDate(value: unknown, today: string): string {
 export function parsePeriod(value: unknown, today: string): Period {
   const v = object(value);
   const p: Period = { id: text(v.id, '经期标识'), startDate: factDate(v.startDate, today),
-    endDate: v.endDate === null ? null : factDate(v.endDate, today), gapBefore: bool(v.gapBefore),
+    endDate: v.endDate === null ? null : factDate(v.endDate, today), endUnknown: v.endUnknown === undefined ? false : bool(v.endUnknown), gapBefore: bool(v.gapBefore),
     note: optionalText(v.note), source: enumeration(v.source, ['USER', 'IMPORT']),
     createdAt: timestamp(v.createdAt), updatedAt: timestamp(v.updatedAt) };
   if (!p.source) throw new Error('经期来源不能为空。');
+  if (p.endUnknown && p.endDate !== null) throw new Error('结束日期未知时，请清空最后出血日期。');
   if (p.endDate && p.endDate < p.startDate) throw new Error('结束日期不能早于开始日期。');
   return p;
 }
@@ -105,14 +106,14 @@ export function parseSettings(value: unknown): Settings {
   return { hiddenGroups: tags(v.hiddenGroups ?? [], groups.map(g => g[0]))! };
 }
 export function coveringPeriod(date: string, periods: Period[]): Period | undefined {
-  return periods.find(p => p.startDate <= date && (!p.endDate || date <= p.endDate));
+  return periods.find(p => p.startDate <= date && (p.endUnknown ? date === p.startDate : !p.endDate || date <= p.endDate));
 }
 export function validatePeriods(periods: Period[], today: string): void {
   const sorted = periods.map(p => parsePeriod(p, today)).sort((a, b) => a.startDate.localeCompare(b.startDate));
   if (new Set(sorted.map(p => p.id)).size !== sorted.length) throw new Error('经期标识重复。');
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1], next = sorted[i];
-    if (!prev.endDate || next.startDate <= prev.endDate)
+    if ((!prev.endDate && !prev.endUnknown) || next.startDate <= (prev.endDate ?? prev.startDate))
       throw new Error(`与 ${prev.startDate} 开始的经期重叠${!prev.endDate ? '，请先填写其结束日期' : ''}。`);
   }
 }
