@@ -6,7 +6,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { bindFixture } from "./fixtures/bind-template.mjs";
 
-for (const name of ["study", "two-to-three", "whiteboard", "ledger", "notes", "calendar", "team-building"])
+for (const name of ["study", "two-to-three", "whiteboard", "ledger", "notes", "calendar", "team-building", "bumang"])
   test(`${name}: build from a verified source commit`, async (t) => {
     const directory = await mkdtemp(path.join(tmpdir(), `tiana-${name}-build-`));
     t.after(() => rm(directory, { recursive: true, force: true }));

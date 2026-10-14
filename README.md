@@ -4,6 +4,8 @@
 
 Tiana 自有代码统一采用 [Apache-2.0](LICENSE) 许可证；第三方代码与素材遵循各模板保留的许可及署名说明。
 
+bumang（不忙）是个人待办与日程应用，用四象限按重要、紧急分组，并在时间轴上把待安排事项拖到具体时段；使用要求见[应用说明](bumang/README.md)。
+
 neon-coast 是带 SQLite 云端存档的单人 3D 城市驾驶游戏，包含街头任务、车库购车、引擎升级与键盘／触控操作；使用要求见[游戏说明](neon-coast/README.md)。
 
 sunlit-album 是轻盈的照片相册，支持文件存储、自动缩略图、轮播、收藏和评论；使用要求见[应用说明](sunlit-album/README.md)。
