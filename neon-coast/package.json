@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "three": "0.180.0",
-    "@tianacloud/serverless": "0.1.0-beta.2",
+    "@tianacloud/serverless": "0.1.0",
     "@fontsource/barlow-condensed": "5.2.6"
   },
   "devDependencies": {

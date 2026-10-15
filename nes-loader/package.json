@@ -9,7 +9,7 @@
     "test:browser": "node test/touch-browser.mjs && node test/library-browser.mjs"
   },
   "dependencies": {
-    "@tianacloud/serverless": "0.1.0-beta.2",
+    "@tianacloud/serverless": "0.1.0",
     "jsnes": "2.1.0"
   },
   "devDependencies": {
