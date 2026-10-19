@@ -14,7 +14,7 @@ async function fixture(t) {
   const directory = path.join(root, "demo");
   await mkdir(path.join(directory, "src"), { recursive: true });
   const metadata = {
-    name: "demo", display_name: "Demo", description: "Personal note application",
+    database_required: true, name: "demo", display_name: "Demo", description: "Personal note application",
     variables: [{name: "WEB_ID", placeholder: "__TIANA_WEB_ID_abc139fd__", description: "The current web ID", files: ["src/config.json"]}],
     schema: "missing.sql",
   };
@@ -110,7 +110,7 @@ test("installation package builds the selected source and separates preview and 
   assert.ok("web.yaml" in site);
   assert.equal(strFromU8(files["showcase/preview.html"]),"<h1>Demo</h1>");
   assert.equal(JSON.parse(strFromU8(source["metadata.json"])).source.commit,commit);
-  assert.deepEqual(JSON.parse(strFromU8(files["install.json"])), {entry:"app.js",variables:[{...f.metadata.variables[0],files:["seed.sql"]}]});
+  assert.deepEqual(JSON.parse(strFromU8(files["install.json"])), {metadata:JSON.parse(strFromU8(source["metadata.json"])),entry:"app.js",database_required:true,variables:[{...f.metadata.variables[0],files:["seed.sql"]}]});
   assert.equal(strFromU8(files["seed.sql"]),await readFile(path.join(f.directory,"seed.sql"),"utf8"));
   const again = await packInstallTemplate(f.root,"demo",commit);
   assert.equal(again.sha256,result.sha256);

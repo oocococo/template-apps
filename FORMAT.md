@@ -56,7 +56,7 @@ schema.sql             # metadata.schema 存在时收录
 seed.sql               # metadata.seeds 存在时收录
 ```
 
-打包器从构建结果生成 site.tweb，沿用 Web 制品的 16 MiB 压缩／解压大小和 4096 个资源上限；如果构建输出 icon.png，MGR 同时提取它作为独立应用图标。install.json 由打包器生成，entry 来自本次构建，只从源码 variables 中收录实际 SQL 文件使用的 WEB_ID、SQLITE_INSTANCE_ID、APP_NAME；文件名映射到包内 schema.sql/seed.sql。
+打包器从构建结果生成 site.tweb，沿用 Web 制品的 16 MiB 压缩／解压大小和 4096 个资源上限；如果构建输出 icon.png，MGR 同时提取它作为独立应用图标。install.json 由打包器生成，包含完整 metadata、明确的 database_required 和来自本次构建的 entry。database_required 在各模板 metadata.json 中声明，不通过 SQL 文件是否存在推断；纯前端填写 false。SQL 变量，只从源码 variables 中收录实际 SQL 文件使用的 WEB_ID、SQLITE_INSTANCE_ID、APP_NAME；文件名映射到包内 schema.sql/seed.sql。
 
 上传时只交付 install.zip。MGR 解包保存 source.zip、site.tweb、独立 preview.html、cover.webp、install.json 和提供的 SQL／图标；prompt 入目录数据库。外层 install.zip 不作为运行时存储对象保留。灵光一闪直接读取独立 HTML，CLI 仍下载 source.zip。
 
