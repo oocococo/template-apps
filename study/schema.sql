@@ -1,20 +1,11 @@
-CREATE TABLE IF NOT EXISTS study_tasks (
-  id TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL,
-  title TEXT NOT NULL,
-  subject TEXT NOT NULL,
-  estimated_minutes INTEGER NOT NULL,
-  done_at TEXT
-);
-
-CREATE INDEX IF NOT EXISTS study_tasks_workspace
-  ON study_tasks (workspace_id);
-
 CREATE TABLE IF NOT EXISTS study_sessions (
   id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL,
   started_at TEXT NOT NULL,
-  minutes INTEGER NOT NULL
+  minutes INTEGER NOT NULL,
+  task_id TEXT,
+  title TEXT,
+  tag TEXT
 );
 
 CREATE INDEX IF NOT EXISTS study_sessions_recent
@@ -23,4 +14,24 @@ CREATE INDEX IF NOT EXISTS study_sessions_recent
 CREATE TABLE IF NOT EXISTS study_profile (
   workspace_id TEXT PRIMARY KEY,
   display_name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS island_buildings (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  session_id TEXT,
+  subject TEXT NOT NULL,
+  building_type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'built',
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS island_buildings_workspace
+  ON island_buildings (workspace_id, created_at);
+
+CREATE TABLE IF NOT EXISTS island_unlocks (
+  workspace_id TEXT NOT NULL,
+  tree_type TEXT PRIMARY KEY,
+  cost INTEGER NOT NULL,
+  unlocked_at TEXT NOT NULL
 );
