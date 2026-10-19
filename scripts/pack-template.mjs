@@ -97,7 +97,7 @@ export async function packInstallTemplate(root, templateName, sourceCommit = "HE
       if (!["WEB_ID", "SQLITE_INSTANCE_ID", "APP_NAME"].includes(variable.name))
         throw new Error(`Unsupported installation SQL variable: ${variable.name}`);
     }
-    materials["install.json"] = Buffer.from(JSON.stringify({ entry, variables }, null, 2) + "\n");
+    materials["install.json"] = Buffer.from(JSON.stringify({ metadata, entry, database_required: metadata.database_required, variables }, null, 2) + "\n");
     const bytes = archive(materials);
     const file = path.join(directory, `${source.source_commit}.install.zip`);
     await writeFile(file, bytes);

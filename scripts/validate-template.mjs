@@ -28,6 +28,7 @@ export function validateTemplateFiles(files, templateName) {
     if (!files[name]?.length) throw new Error(`Missing showcase material: ${name}`);
   }
   if (files["showcase/preview.html"].length > 500000) throw new Error("showcase/preview.html must not exceed 500,000 bytes before compression");
+  if (typeof metadata.database_required !== "boolean") throw new Error("metadata.json requires database_required");
   const variables = metadata.variables ?? [];
   for (const variable of variables) {
     if (!variable.name || !variable.description?.trim() || !/^__TIANA_[A-Z0-9_]+_[a-f0-9]+__$/.test(variable.placeholder ?? "") || !variable.files?.length)
