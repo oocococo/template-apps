@@ -29,7 +29,14 @@ export interface Workspace {
   targets: Record<Day, Record<string, number>>;
   calibrations: {moduleId: string; signature: string; accepted: boolean}[];
 }
-export const uid = () => crypto.randomUUID();
+export function uid(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
 export const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 export const colors = ['#6989b8', '#9aab46', '#cf8470', '#a28dbb', '#609e8a', '#b79865'];
 export function emptyWorkspace(): Workspace {
