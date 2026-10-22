@@ -1,0 +1,11 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import App from './App.jsx';
+import catalogue from './catalogue.js';
+import {GymStore,connectDatabase} from './storage.js';
+import styles from './styles.css';
+const style=document.createElement('style');style.textContent=styles;document.head.append(style);
+const store=new GymStore();store.ready=false;store.demo=false;
+store.boot=async()=>{store.error='';store.emit();try{store.execute=await connectDatabase();await store.load();}catch(e){store.error=e.message||'暂时无法连接数据库，请检查登录和网络';store.emit();}};
+createRoot(document.getElementById('app')).render(<App store={store} catalogue={catalogue}/>);
+store.boot();

@@ -1,0 +1,11 @@
+import { build } from 'esbuild';
+import { mkdir, readFile, writeFile, copyFile, readdir, rm } from 'node:fs/promises';
+const commit = process.argv[2];
+if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(commit || '')) throw new Error('请传入已核实的完整源码提交号。');
+const source = JSON.parse(await readFile('source.json', 'utf8'));
+if (!process.env.TIANA_TEMPLATE_BUILD && Object.values(source).some(v => v.startsWith('__TIANA_'))) throw new Error('请先填写本次应用的 SQLite 和 Git 绑定。');
+await mkdir('dist', {recursive:true});
+for (const f of await readdir('dist')) await rm(`dist/${f}`, {recursive:true,force:true});
+await build({entryPoints:['src/main.jsx'],bundle:true,minify:true,format:'esm',target:'es2022',outfile:'dist/assets/app.js',loader:{'.css':'text'},define:{'process.env.NODE_ENV':'"production"'},legalComments:'none'});
+await copyFile('public/icon.png','dist/icon.png');
+console.log('TIANA_PROJECT_PARAMS '+JSON.stringify({entry:'assets/app.js',...source,source_commit:commit}));
