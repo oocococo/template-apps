@@ -269,8 +269,36 @@ test("CSV quoting, input validation, JSON references and calendar export preserv
   assert.ok(ics.includes("DTEND:20261101T060000"));
   assert.ok(ics.includes("DTSTAMP:20261022T000000Z"));
   assert.ok(ics.includes("=SUM(1\\,2)\\n交班"));
+  r.notes["2026-10-31"] = "交班\r检查";
+  assert.ok(
+    exportIcs(w, r, "2026-10-31", "2026-10-31").includes(
+      "DESCRIPTION:交班\\n检查",
+    ),
+  );
   for (const line of foldLine("DESCRIPTION:" + "汉字,中文；".repeat(40)).split(
     "\r\n",
   ))
     assert.ok(Buffer.byteLength(line) <= 75);
+});
+test("CSV reimport preserves literal apostrophes as well as formula-like notes", () => {
+  const { w, r, night } = fixture();
+  r.entries["2026-10-31"] = night;
+  for (const note of [
+    "'=SUM(1,2)",
+    "''plain",
+    "'ordinary",
+    " =SUM(1,2)",
+    "@提醒",
+    "+文字",
+    "-文字",
+    "\t=SUM(1,2)",
+  ]) {
+    r.notes["2026-10-31"] = note;
+    const roundtrip = importCsv(
+      w,
+      exportCsv(w, r, "2026-10-31", "2026-10-31"),
+      "重新导入",
+    );
+    assert.equal(roundtrip.rosters.at(-1)!.notes["2026-10-31"], note);
+  }
 });

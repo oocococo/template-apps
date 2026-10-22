@@ -19,7 +19,10 @@ export function download(name: string, content: string, type: string) {
 }
 const csvCell = (value: string) =>
   '"' +
-  (/^[\s]*[=+\-@]/.test(value) ? "'" + value : value).replaceAll('"', '""') +
+  (/^[\s]*[=+\-@]/.test(value) || value.startsWith("'")
+    ? "'" + value
+    : value
+  ).replaceAll('"', '""') +
   '"';
 export function exportCsv(w: Workspace, r: Roster, start: string, end: string) {
   const rows = [
@@ -105,7 +108,8 @@ export function importCsv(w: Workspace, text: string, name: string): Workspace {
     throw new Error("CSV 需要 1–60000 条记录");
   const next = structuredClone(w),
     r = newRoster(name.trim() || "导入的班表", next.shifts);
-  const unprotect = (v: string) => (/^'[\s]*[=+\-@]/.test(v) ? v.slice(1) : v);
+  const unprotect = (v: string) =>
+    v.startsWith("''") || /^'[\s]*[=+\-@]/.test(v) ? v.slice(1) : v;
   for (const [index, values] of rows.entries()) {
     if (values.length !== header.length)
       throw new Error(`CSV 第 ${index + 2} 行列数不一致`);
@@ -179,7 +183,7 @@ export function importJson(text: string): Workspace {
 const icsEscape = (s: string) =>
   s
     .replaceAll("\\", "\\\\")
-    .replace(/\r?\n/g, "\\n")
+    .replace(/\r\n|\r|\n/g, "\\n")
     .replaceAll(",", "\\,")
     .replaceAll(";", "\\;");
 export function foldLine(line: string) {
