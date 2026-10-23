@@ -30,13 +30,13 @@ function fixture({count = 1, label = 'A', delay = 0} = {}) {
   return {index, contents, payloads, calls, files, urls, revoked, options, maxActive:()=>maxActive};
 }
 
-test('the original binary payload is preserved and a clip gets video/mp4', async () => {
+test('original stills retain their bytes and MP4 bytes need no blob media URL', async () => {
   const f=fixture(), media=new ExerciseMedia(f.files,f.options);
   const still=await media.acquire('0001'), clip=await media.acquire('0001','clip');
   assert.deepEqual(Buffer.from(await f.urls.get(still.url).arrayBuffer()),f.payloads[0]);
-  assert.deepEqual(Buffer.from(await f.urls.get(clip.url).arrayBuffer()),f.payloads[1]);
+  assert.deepEqual(Buffer.from(clip.bytes),f.payloads[1]);
   assert.equal(f.urls.get(still.url).type,'image/webp');
-  assert.equal(f.urls.get(clip.url).type,'video/mp4');
+  assert.equal(clip.url,null); assert.equal(f.urls.size,1);
   still.release(); clip.release();
 });
 

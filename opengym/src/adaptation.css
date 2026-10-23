@@ -39,8 +39,8 @@
 .exercise-list.ex-grid .item .exercise-thumb{aspect-ratio:1;width:100%;height:auto}.exercise-list.ex-grid .ex-new .exercise-thumb{width:50px;height:50px}
 .library-content .load-more{margin-top:10px;width:100%}.modal .exercise-list{display:flex;flex-direction:column}.modal .exercise-list.ex-grid{display:grid}
 .exercise-animation{position:relative;overflow:hidden;background:#fff;border-radius:16px;margin-bottom:12px}.animation-surface{display:block;position:relative;width:100%;padding:0;border:0;background:#fff;text-align:center;line-height:0;border-radius:0}
-.exercise-animation .animation-surface>img,.exercise-animation .animation-surface>video{width:100%;height:320px;object-fit:contain;display:block;background:#fff}
-.exercise-animation.mini .animation-surface>img,.exercise-animation.mini .animation-surface>video{height:84px}
+.exercise-animation .animation-surface>img,.exercise-animation .animation-surface>canvas{width:100%;height:320px;object-fit:contain;display:block;background:#fff}
+.exercise-animation.mini .animation-surface>img,.exercise-animation.mini .animation-surface>canvas{height:84px}
 .animation-placeholder{height:320px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#737373;background:#f5f5f5;font-size:13px;line-height:1.5}
 .mini .animation-placeholder{height:84px}.animation-placeholder small{font-size:12px}.animation-hint,.animation-size{line-height:1.25;z-index:2}.animation-hint{pointer-events:none}
 .detail-illustration{display:flex;gap:10px;margin:10px 0 18px;padding:0}.detail-illustration>span{display:none}.detail-illustration p{font-size:15px}.detail-illustration small{font-size:13px}.exercise-description{font-size:15px;color:var(--label-2);margin:0 0 18px;line-height:1.5}.instructions{font-size:15px;line-height:1.5}
@@ -69,4 +69,4 @@
 .lib-hdr{flex-wrap:wrap;align-items:center;row-gap:0}.lib-hdr>div:first-child{display:contents}.lib-hdr h1{order:0;flex:1}.lib-hdr .heading-actions{order:2;margin-left:auto}.lib-hdr .sub{order:3;flex:1 0 100%;margin-top:4px}
 
 .exercise-tags{flex-direction:row;align-items:center}.instructions li{color:var(--label-2)}
-@media(min-width:1000px){.exercise-animation:not(.mini) .animation-surface>img,.exercise-animation:not(.mini) .animation-surface>video,.exercise-animation:not(.mini) .animation-placeholder{height:380px}}
+@media(min-width:1000px){.exercise-animation:not(.mini) .animation-surface>img,.exercise-animation:not(.mini) .animation-surface>canvas,.exercise-animation:not(.mini) .animation-placeholder{height:380px}}

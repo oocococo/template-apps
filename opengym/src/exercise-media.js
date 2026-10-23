@@ -98,20 +98,21 @@ export class ExerciseMedia {
     if (!this.assets.has(key)) {
       const buffer = await this.pack(info);
       if (this.disposed) throw new Error('动作演示已关闭');
-      if (!this.assets.has(key)) this.assets.set(key, {
-        url: this.createURL(new Blob([buffer.slice(offset, offset + size)], {type: kind === 'clip' ? 'video/mp4' : 'image/webp'})),
-        refs: 0,
-      });
+      if (!this.assets.has(key)) {
+        const bytes = buffer.slice(offset, offset + size);
+        this.assets.set(key, {bytes: kind === 'clip' ? bytes : null,
+          url: kind === 'still' ? this.createURL(new Blob([bytes], {type: 'image/webp'})) : null, refs: 0});
+      }
     }
     const asset = this.assets.get(key);
     asset.refs++;
     let released = false;
-    return {url: asset.url, release: () => {
+    return {url: asset.url, bytes: asset.bytes, release: () => {
       if (released) return;
       released = true;
       asset.refs--;
       if (!asset.refs && this.assets.get(key) === asset) {
-        this.revokeURL(asset.url);
+        if (asset.url) this.revokeURL(asset.url);
         this.assets.delete(key);
       }
     }};
@@ -119,7 +120,7 @@ export class ExerciseMedia {
 
   dispose() {
     this.disposed = true;
-    for (const asset of this.assets.values()) this.revokeURL(asset.url);
+    for (const asset of this.assets.values()) if (asset.url) this.revokeURL(asset.url);
     this.assets.clear();
     this.packs.clear();
     this.bytes = 0;

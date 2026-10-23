@@ -10,9 +10,11 @@
 
 符合上述条件的个人部署将素材保存在本应用的 Tiana 文件目录 `exercise-media/v1/`。目录包含 5,632 个动作的 WebP 和 MP4 原文件，其中 5,597 个 MP4 为多帧视频，35 个原文件为单帧，界面以静态图示呈现，按标准 ZIP STORE 分组，`manifest.json` 记录每个原文件的位置和文件包摘要。浏览器按需下载、校验摘要并播放原始内容，最多同时读取三个文件包，缓存限为 32 MiB。文件路径由运行时限定到当前应用，不共享其他安装的数据。
 
+动画使用 MP4Box.js 提取原文件中的 H.264 数据，再用 WebCodecs 解码到 Canvas；不转码或生成替代素材。播放按原始显示时间排序 B 帧，以原时长循环，只保留少量待显示帧；离开可见区域、暂停或关闭时释放解码器与帧。需要支持 H.264 WebCodecs 的浏览器；不支持时保留原图。附加组件许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+
 `scripts/media/prepare-original-media.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用固定原版提交及 Git 树核对原文件、尺寸和对应动作，并生成目录与完整声明；准备过程需 Python Pillow。`upload-original-media.mjs --root DATA_ROOT --web WEB_ID` 通过 Recode 工具包调用官方 Tiana CLI 上传，保存每次回执，最后上传完整目录。不确定的上传须先对账，不能自动重放。新安装须自行按许可准备自己的媒体目录；缺少素材时，训练记录功能仍可使用。
 
-`validate-original-clips.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用 ffprobe 检查全部视频的编码、像素格式、帧数、时长和尺寸。`preview-original-media.mjs --root DATA_ROOT --output PREVIEW_DIR` 生成使用实际页面组件、完整目录和原始文件的本地视觉预览；通过回环地址的静态 HTTP 服务打开。该预览使用可公开的合成数据和页面内存，不代表云端持久化验证。
+`validate-original-clips.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用 ffprobe 检查全部视频的编码、像素格式、帧数、时长和尺寸。`validate-original-demux.mjs --root DATA_ROOT --source CLIP_DIRECTORY` 将播放器实际提取的帧数、尺寸和时间信息逐项与 ffprobe 结果比较。`preview-original-media.mjs --root DATA_ROOT --output PREVIEW_DIR` 生成使用实际页面组件、完整目录和原始文件的本地视觉预览；通过回环地址的静态 HTTP 服务打开。该预览使用可公开的合成数据和页面内存，不代表云端持久化验证。
 
 ## 安装和开发
 

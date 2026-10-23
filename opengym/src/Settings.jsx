@@ -2,7 +2,9 @@ import React,{useState} from 'react';
 import {useGym,PageTitle,SectionHead,Button,Icon,Modal,Field,Note,saveDownload} from './ui.jsx';
 import {today,fmt} from './domain.js';
 import {previewJSON,previewCSV} from './imports.js';
-import notice from '../NOTICE.md';
+import originalNotice from '../NOTICE.md';
+import additionalNotice from '../THIRD-PARTY-NOTICES.md';
+const notice = originalNotice + '\n\n' + additionalNotice;
 
 export function Settings(){const {store,all,run,toast}=useGym();const [name,setName]=useState(store.setting('name','训练者')),[unit,setUnit]=useState(store.setting('unit','kg')),[week,setWeek]=useState(store.setting('weekStart',1)),[mediaSize,setMediaSize]=useState(store.setting('mediaSize','full')),[showNotice,setShowNotice]=useState(false),[preview,setPreview]=useState(null),[busy,setBusy]=useState(false);const save=()=>run(async()=>{if(!name.trim())throw new Error('请填写你的称呼');store.setSetting('name',name.trim());store.setSetting('unit',unit);store.setSetting('weekStart',Number(week));store.setSetting('mediaSize',mediaSize);if(!await store.flush())throw new Error(store.error);toast('偏好设置已保存');});
   const readFile=e=>{const file=e.target.files[0];e.target.value='';if(!file)return;run(async()=>{if(file.size>20*1024*1024)throw new Error('每次请选择 20 MB 以内的文件');const text=await file.text();const existing=new Set([...store.rows.values()].filter(r=>!r.deleted).map(r=>`${r.kind}:${r.id}`));const data=file.name.toLowerCase().endsWith('.json')?previewJSON(text,existing):previewCSV(text,all,existing);setPreview({...data,name:file.name});});};

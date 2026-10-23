@@ -16,7 +16,7 @@ if (manifest.exerciseCount !== 5632) throw new Error('Complete media catalogue r
 const result = await build({
   absWorkingDir: app, entryPoints:['src/demo.jsx'], bundle:true, minify:true,
   format:'iife', target:'es2022', write:false, loader:{'.css':'text','.md':'text'},
-  define:{'process.env.NODE_ENV':'"production"'}, legalComments:'none',
+  define:{'process.env.NODE_ENV':'"production"','process.env.TIANA_DEMO':'"false"'}, legalComments:'none',
   plugins:[{name:'local-original-media',setup(b){
     b.onLoad({filter:/\/src\/demo\.jsx$/},async ({path}) => {
       let contents = await readFile(path, 'utf8');
