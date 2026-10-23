@@ -1,0 +1,36 @@
+{
+  "fps": 30,
+  "camera": "side",
+  "id": "bear_crawl",
+  "name": "Bear Crawl",
+  "equipment": "None",
+  "difficulty": "Intermediate",
+  "movement": {
+    "pattern": "crawl"
+  },
+  "primary": [
+    "Core",
+    "Shoulders"
+  ],
+  "secondary": [
+    "Quads",
+    "Triceps",
+    "Glutes"
+  ],
+  "steps": [
+    "Start on hands and toes, knees hovering an inch off the floor.",
+    "Move the opposite hand and foot forward together.",
+    "Keep the hips low and the back flat throughout.",
+    "Take small steps; the knees never touch the floor."
+  ],
+  "duration": 3.2,
+  "authored": {
+    "method": "bear-crawl-ik/1",
+    "hipHeight": 0.54,
+    "stride": 0.06,
+    "lift": 0.025,
+    "wristHeight": 0.07,
+    "footSetback": 0.3,
+    "ankleHeight": 0.11
+  }
+}

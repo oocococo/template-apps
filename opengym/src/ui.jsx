@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useContext,createContext,useState} from 'react';
 export const AppContext=createContext(null);
 export const useGym=()=>useContext(AppContext);
 const paths={
+  pause:'M8 5v14M16 5v14',grid:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   home:'m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z',
   plan:'M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM7 14h2m3 0h2m3 0h1M7 18h2m3 0h2',
   workout:'M6 6v12m12-12v12M3 9v6m18-6v6M6 12h12',
@@ -23,7 +24,7 @@ export function Icon({name,size=20,...props}){return <svg width={size} height={s
 export function Button({children,icon,variant='',className='',...props}){return <button type="button" className={`button ${variant} ${className}`} {...props}>{icon&&<Icon name={icon} size={18}/>}<span>{children}</span></button>;}
 export function IconButton({name,label,...props}){return <button type="button" className="icon-button" aria-label={label} title={label} {...props}><Icon name={name}/></button>;}
 export function Tag({children,color}){return <span className="tag" style={color?{color,background:`${color}18`}:undefined}>{children}</span>;}
-export function PageTitle({eyebrow,title,subtitle,children}){return <div className="page-heading"><div><div className="eyebrow">{eyebrow||'YOUR PERSONAL TRAINING SPACE'}</div><h1>{title}</h1>{subtitle&&<p>{subtitle}</p>}</div><div className="heading-actions">{children}</div></div>;}
+export function PageTitle({eyebrow,title,subtitle,children}){const gym=useGym();return <div className="hdr page-heading"><div><h1>{title}</h1>{subtitle&&<p className="sub">{subtitle}</p>}</div><div className="heading-actions">{children}{gym?.route?.split('/')[0]==='home'&&<IconButton name="settings" label="设置" onClick={()=>gym.go('settings')}/>} {gym?.route?.split('/')[0]==='settings'&&<IconButton name="back" label="返回概览" onClick={()=>gym.go('home')}/>}</div></div>;}
 export function SectionHead({title,children}){return <div className="section-head"><h2>{title}</h2>{children}</div>;}
 export function Empty({icon='workout',title,children,action}){return <div className="empty"><span className="empty-icon"><Icon name={icon} size={30}/></span><h3>{title}</h3><p>{children}</p>{action}</div>;}
 export function Modal({title,subtitle,onClose,children,wide=false}) {
