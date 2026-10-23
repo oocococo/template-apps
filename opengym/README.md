@@ -8,7 +8,7 @@
 
 本工程是 openGym 的 AGPL 分支。图片和视频有单独的许可，完整条件见 [NOTICE.md](NOTICE.md)。原版允许非商业 openGym 分支保留未修改、最大 180 像素的素材并附带该声明，其他用途需另行取得许可。源码包和公共展示不附带媒体文件，也不从原站借链。
 
-符合上述条件的个人部署将素材保存在本应用的 Tiana 文件目录 `exercise-media/v1/`。目录包含 5,632 个动作的 WebP 和 MP4 原文件，按标准 ZIP STORE 分组，`manifest.json` 记录每个原文件的位置和文件包摘要。浏览器按需下载、校验摘要并播放原始内容，最多同时读取三个文件包，缓存限为 32 MiB。文件路径由运行时限定到当前应用，不共享其他安装的数据。
+符合上述条件的个人部署将素材保存在本应用的 Tiana 文件目录 `exercise-media/v1/`。目录包含 5,632 个动作的 WebP 和 MP4 原文件，其中 5,597 个 MP4 为多帧视频，35 个原文件为单帧，界面以静态图示呈现，按标准 ZIP STORE 分组，`manifest.json` 记录每个原文件的位置和文件包摘要。浏览器按需下载、校验摘要并播放原始内容，最多同时读取三个文件包，缓存限为 32 MiB。文件路径由运行时限定到当前应用，不共享其他安装的数据。
 
 `scripts/media/prepare-original-media.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用固定原版提交及 Git 树核对原文件、尺寸和对应动作，并生成目录与完整声明；准备过程需 Python Pillow。`upload-original-media.mjs --root DATA_ROOT --web WEB_ID` 通过 Recode 工具包调用官方 Tiana CLI 上传，保存每次回执，最后上传完整目录。不确定的上传须先对账，不能自动重放。新安装须自行按许可准备自己的媒体目录；缺少素材时，训练记录功能仍可使用。
 

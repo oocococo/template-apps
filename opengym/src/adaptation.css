@@ -63,3 +63,7 @@
 .active-muscle-filter{display:flex;align-items:center;justify-content:space-between;font-size:15px;color:var(--acc);padding:10px 12px;border-radius:10px;background:var(--acc-soft);margin-bottom:10px}.active-muscle-filter button{color:inherit;background:none;border:0;display:flex;align-items:center;gap:5px;font-size:13px}.muscle-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.exercise-tags{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.exercise-description{background:var(--surface);padding:14px;border-radius:14px}
 
 .demo-banner{background:var(--surface);border:0;border-radius:12px;color:var(--label-2)}.demo-banner button{color:var(--acc)}
+
+.animation-surface:disabled{opacity:1;cursor:default}
+
+.lib-hdr{flex-wrap:wrap;align-items:center;row-gap:0}.lib-hdr>div:first-child{display:contents}.lib-hdr h1{order:0;flex:1}.lib-hdr .heading-actions{order:2;margin-left:auto}.lib-hdr .sub{order:3;flex:1 0 100%;margin-top:4px}

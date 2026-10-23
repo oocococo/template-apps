@@ -1,6 +1,10 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {useGym, Icon} from './ui.jsx';
 
+// The pinned original MP4s for these IDs contain one frame (0.1 seconds).
+// Keep their original pictures and present them as stills, without a play hint.
+const STATIC_CLIPS = new Set(['0136','0715','0948','10663','10665','11451','3832','3833','3834','3835','3836','4365','4381','4387','4405','4410','4581','4811','5045','5159','5195','5376','5892','5894','6878','6879','6880','6902','9310','9311','9313','9317','9319','9320','9325']);
+
 function useAsset(exercise, kind, enabled, attempt = 0) {
   const {media} = useGym();
   const key = exercise?.id + ':' + kind;
@@ -50,19 +54,20 @@ export function ExerciseAnimation({exercise, minimizable = false}) {
   const [playing, setPlaying] = useState(true), [failed, setFailed] = useState(false), [attempt, setAttempt] = useState(0);
   const size = minimizable ? store.setting('mediaSize', 'full') : 'full';
   const enabled = size !== 'off';
+  const staticOnly = STATIC_CLIPS.has(exercise?.id);
   const still = useAsset(exercise, 'still', enabled, attempt);
-  const clip = useAsset(exercise, 'clip', enabled && playing && !failed, attempt);
+  const clip = useAsset(exercise, 'clip', enabled && playing && !failed && !staticOnly, attempt);
   useEffect(() => { setPlaying(true); setFailed(false); }, [exercise?.id]);
   if (!enabled || !media || !exercise || exercise.id?.startsWith('custom-')) return null;
   const retry = () => { setFailed(false); setAttempt(n => n + 1); setPlaying(true); };
   const onTap = () => (failed || clip.error) ? retry() : setPlaying(value => !value);
   const mini = size === 'mini';
-  return <div className={`exmedia exercise-animation ${mini ? 'mini' : ''}`}>
-    <button type="button" className="animation-surface" onClick={onTap} aria-label={`${playing ? '暂停' : '播放'} ${exercise.name} 动作演示`}>
+  return <div className={`exmedia exercise-animation ${mini ? 'mini' : ''}`} data-exercise-id={exercise.id}>
+    <button type="button" className="animation-surface" onClick={staticOnly ? still.error ? retry : undefined : onTap} disabled={staticOnly && !still.error} aria-label={staticOnly ? `${exercise.name} 静态动作图示` : `${playing ? '暂停' : '播放'} ${exercise.name} 动作演示`}>
       {playing && !failed && clip.url ? <video className="catvid" key={clip.url} ref={autoplay} src={clip.url} autoPlay muted loop playsInline disablePictureInPicture aria-label={`${exercise.name} 动作演示`} onError={() => setFailed(true)}/>
         : still.url ? <img src={still.url} alt={`${exercise.name} 动作图示`} draggable={false}/>
         : <span className="animation-placeholder"><Icon name="workout" size={38}/><small>{still.error || clip.error ? '暂时无法加载，点击重试' : '正在加载动作演示…'}</small></span>}
-      {!mini && <span className="gifhint animation-hint"><Icon name={playing && !failed ? 'pause' : 'play'} size={13}/>{failed || clip.error ? '点击重试' : playing ? '点击暂停' : '点击播放'}</span>}
+      {!mini && <span className="gifhint animation-hint">{staticOnly ? '静态图示' : <><Icon name={playing && !failed ? 'pause' : 'play'} size={13}/>{failed || clip.error ? '点击重试' : playing ? '点击暂停' : '点击播放'}</>}</span>}
     </button>
     {minimizable && <button type="button" className="giftoggle animation-size" onClick={() => run(async () => { store.setSetting('mediaSize', mini ? 'full' : 'mini'); if (!await store.flush()) throw new Error(store.error); })}>{mini ? '展开' : '收起'}</button>}
   </div>;

@@ -31,8 +31,8 @@ def main():
             stream = json.loads(result.stdout)['streams'][0]
             valid = (stream['codec_name'] == 'h264' and stream['pix_fmt'] == 'yuv420p'
                      and 0 < stream['width'] <= 180 and 0 < stream['height'] <= 180
-                     and int(stream['nb_frames']) > 1 and float(stream['duration']) > 0)
-            return {'id': exercise, 'valid': valid, **stream}
+                     and int(stream['nb_frames']) >= 1 and float(stream['duration']) > 0)
+            return {'id': exercise, 'valid': valid, 'motion': int(stream['nb_frames']) > 1, **stream}
         except Exception as error:
             return {'id': exercise, 'valid': False, 'error': type(error).__name__}
 
@@ -46,7 +46,9 @@ def main():
     rows.sort(key=lambda row: row['id'])
     invalid = [row['id'] for row in rows if not row['valid']]
     report = {'target': 5632, 'inspected': len(rows), 'valid': len(rows) - len(invalid),
-              'invalid': invalid, 'method': 'ffprobe stream metadata',
+              'invalid': invalid, 'multiFrameClips': sum(row.get('motion', False) for row in rows),
+              'singleFrameClips': [row['id'] for row in rows if row.get('valid') and not row.get('motion')],
+              'method': 'ffprobe stream metadata',
               'cloudAcceptance': False, 'clips': rows}
     output = root / 'analysis/media-rebuild/original-media/clip-metadata.json'
     output.write_text(json.dumps(report, indent=2) + '\n')

@@ -43,7 +43,7 @@ export function ExerciseList({onPick, onPlan, onCreate, muscle = '', onClearMusc
     <div className="results-caption" role="status">{results.length.toLocaleString()} 个动作{query && ` · “${query}”`}</div>
     <div className={`list exercise-list ${cards ? 'ex-grid' : ''}`}>
       {onCreate && <button type="button" className="item ex-new" onClick={onCreate}><span className="thumb thumb-x"><Icon name="plus" size={24}/></span><span className="grow"><span className="tt">创建自定义动作</span><span className="ss">添加动作名称、肌群和训练方式</span></span><Icon name="plus"/></button>}
-      {results.slice(0, count).map(exercise => <div key={exercise.id} className="item" role="button" tabIndex={0} onClick={() => onPick(exercise)} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onPick(exercise); } }}>
+      {results.slice(0, count).map(exercise => <div key={exercise.id} data-exercise-id={exercise.id} className="item" role="button" tabIndex={0} onClick={() => onPick(exercise)} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onPick(exercise); } }}>
         <ExerciseThumb exercise={exercise}/>
         <span className="grow"><span className="tt">{exercise.name}</span><span className="ss">{MUSCLES[muscleOf(exercise.muscle)]} · {EQUIPMENT[exercise.equipment] || exercise.equipment || '自定义'}</span></span>
         {onPlan ? <Button icon="plus" variant="tinted" onClick={event => { event.stopPropagation(); onPlan(exercise); }}>计划</Button> : <Icon name="plus" size={18}/>}
