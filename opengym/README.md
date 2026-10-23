@@ -2,7 +2,7 @@
 
 个人训练计划、逐组记录、休息倒计时、训练进度和体重追踪。内置 5,632 个动作，支持中文与英文搜索、器械与肌群筛选、自定义动作、四种入门计划、每周/轮换安排、历史编辑、训练热力图、肌群训练量和个人纪录。可记录并比较进度照片，导入训练 CSV，导出/恢复 JSON 备份。
 
-安装后为空数据，从入门计划或自由训练开始。使用 Tiana 身份和独立 SQLite，适合个人租户，无需自建后端。个人应用可从自己的 Tiana 文件目录读取动作缩略图和循环动画，详情可点击切换静态图，训练中可收起或关闭演示。
+安装后为空数据，从入门计划或自由训练开始。使用 Tiana 身份和独立 SQLite，适合个人租户，无需自建后端。首次打开动作库或设置，点击“准备素材”，确认个人非商业使用条件后，可在线准备全部图片与动画，或选择已有完整素材文件夹导入。约需 174 MB 云端空间，所需时间取决于网络；可暂停续传。完成后从本应用自己的 Tiana 文件目录读取动作缩略图和循环动画，详情可点击切换静态图，训练中可收起或关闭演示。
 
 ## 动作媒体
 
@@ -12,7 +12,7 @@
 
 动画使用 MP4Box.js 提取原文件中的 H.264 数据，再用 WebCodecs 解码到 Canvas；不转码或生成替代素材。播放按原始显示时间排序 B 帧，以原时长循环，只保留少量待显示帧；离开可见区域、暂停或关闭时释放解码器与帧。需要支持 H.264 WebCodecs 的浏览器；不支持时保留原图。附加组件许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
-`scripts/media/prepare-original-media.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用固定原版提交及 Git 树核对原文件、尺寸和对应动作，并生成目录与完整声明；准备过程需 Python Pillow。`upload-original-media.mjs --root DATA_ROOT --web WEB_ID` 通过 Recode 工具包调用官方 Tiana CLI 上传，保存每次回执，最后上传完整目录。不确定的上传须先对账，不能自动重放。新安装须自行按许可准备自己的媒体目录；缺少素材时，训练记录功能仍可使用。
+`scripts/media/prepare-original-media.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用固定原版提交及 Git 树核对原文件、尺寸和对应动作，并生成目录与完整声明；准备过程需 Python Pillow。`upload-original-media.mjs --root DATA_ROOT --web WEB_ID` 通过 Recode 工具包调用官方 Tiana CLI 上传，保存每次回执，最后上传完整目录。不确定的上传须先对账，不能自动重放。在线准备流程会从固定版本的公开文件逐项读取未修改的原文件，在浏览器内按既有 ZIP STORE 格式复现并校验全部摘要，再通过平台文件 API 保存到当前应用；图片和视频不会在日常播放时借链。已完成的文件先读取核验后复用，保存结果不明确时通过原上传回执核对，不重复写入。上传编号保存在以本应用 ID 隔离的本地进度记录中，不保存凭据。全部素材和版权声明确认后才提交完整目录；暂停、离线或空间不足不会将部分目录显示为完整。缺少素材时，训练记录功能仍可使用。
 
 `validate-original-clips.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用 ffprobe 检查全部视频的编码、像素格式、帧数、时长和尺寸。`validate-original-demux.mjs --root DATA_ROOT --source CLIP_DIRECTORY` 将播放器实际提取的帧数、尺寸和时间信息逐项与 ffprobe 结果比较。`preview-original-media.mjs --root DATA_ROOT --output PREVIEW_DIR` 生成使用实际页面组件、完整目录和原始文件的本地视觉预览；通过回环地址的静态 HTTP 服务打开。该预览使用可公开的合成数据和页面内存，不代表云端持久化验证。
 
@@ -26,7 +26,7 @@
 4. `npm run build -- FULL_SOURCE_COMMIT` 输出 dist 与 TIANA_PROJECT_PARAMS。创建 Web 时固定 entry 为 `assets/app.js`，绑定本次 SQLite、Git。
 5. `tiana web publish WEB_ID --dir dist --json`，按返回 publish_id 核对激活结果。使用实际回执中的应用地址登录。
 
-应用通过 `window.tiana.connection()` 和共享动态 `window.tiana.auth` provider 获取数据库连接。构建产物不包含绑定 ID 或凭据，适用于独立安装。需要支持参数化 SQL 的 hrana-v3 通道。
+应用通过 `window.tiana.connection()` 和共享动态 `window.tiana.auth` provider 获取数据库连接。构建产物不包含绑定 ID 或凭据，适用于独立安装。初始化同样只使用当前应用的文件 API，不能访问其他安装的目录。需要支持参数化 SQL 的 hrana-v3 通道。
 
 `npm run showcase` 生成自包含内存示例。预览与完整应用复用页面组件和样式，演示数据仅保留于页面，导入和下载在预览中禁用。封面通过制作工具从同份预览生成。
 

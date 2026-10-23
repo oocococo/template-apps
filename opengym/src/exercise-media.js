@@ -16,6 +16,15 @@ export class ExerciseMedia {
     this.running = 0;
     this.waiters = [];
     this.disposed = false;
+    this.listeners = new Set();
+  }
+
+  subscribe = listener => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
+  refresh() { this.index = undefined; this.listeners.forEach(fn => fn()); }
+  async preparation() {
+    if (process.env.TIANA_DEMO === 'true') throw new Error('请在完整应用中准备动作素材');
+    if (!this.preparer) this.preparer = import('./media-setup-provider.js').then(module => module.createMediaPreparation(this)).catch(error => { this.preparer = undefined; throw error; });
+    return this.preparer;
   }
 
   async manifest() {
@@ -122,6 +131,7 @@ export class ExerciseMedia {
     this.disposed = true;
     for (const asset of this.assets.values()) if (asset.url) this.revokeURL(asset.url);
     this.assets.clear();
+    this.listeners.clear();
     this.packs.clear();
     this.bytes = 0;
   }

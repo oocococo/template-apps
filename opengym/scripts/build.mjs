@@ -6,6 +6,6 @@ const source = JSON.parse(await readFile('source.json', 'utf8'));
 if (!process.env.TIANA_TEMPLATE_BUILD && Object.values(source).some(v => v.startsWith('__TIANA_'))) throw new Error('请先填写本次应用的 SQLite 和 Git 绑定。');
 await mkdir('dist', {recursive:true});
 for (const f of await readdir('dist')) await rm(`dist/${f}`, {recursive:true,force:true});
-await build({entryPoints:['src/main.jsx'],bundle:true,minify:true,format:'esm',target:'es2022',outfile:'dist/assets/app.js',loader:{'.css':'text','.md':'text'},define:{'process.env.NODE_ENV':'"production"','process.env.TIANA_DEMO':'"false"'},legalComments:'none'});
+await build({entryPoints:['src/main.jsx'],bundle:true,minify:true,format:'esm',target:'es2022',outfile:'dist/assets/app.js',loader:{'.css':'text','.md':'text','.txt':'text'},define:{'process.env.NODE_ENV':'"production"','process.env.TIANA_DEMO':'"false"'},legalComments:'none'});
 await copyFile('public/icon.png','dist/icon.png');
 console.log('TIANA_PROJECT_PARAMS '+JSON.stringify({entry:'assets/app.js',...source,source_commit:commit}));

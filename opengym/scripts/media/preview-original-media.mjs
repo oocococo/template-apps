@@ -15,7 +15,7 @@ const manifest = JSON.parse(await readFile(resolve(mediaDirectory, 'manifest.jso
 if (manifest.exerciseCount !== 5632) throw new Error('Complete media catalogue required');
 const result = await build({
   absWorkingDir: app, entryPoints:['src/demo.jsx'], bundle:true, minify:true,
-  format:'iife', target:'es2022', write:false, loader:{'.css':'text','.md':'text'},
+  format:'iife', target:'es2022', write:false, loader:{'.css':'text','.md':'text','.txt':'text'},
   define:{'process.env.NODE_ENV':'"production"','process.env.TIANA_DEMO':'"false"'}, legalComments:'none',
   plugins:[{name:'local-original-media',setup(b){
     b.onLoad({filter:/\/src\/demo\.jsx$/},async ({path}) => {

@@ -10,6 +10,8 @@ function useAsset(exercise, kind, enabled, attempt = 0) {
   const {media} = useGym();
   const key = exercise?.id + ':' + kind;
   const [state, setState] = useState({key: null, url: null, error: false});
+  const [generation, setGeneration] = useState(0);
+  useEffect(() => media?.subscribe(() => setGeneration(n => n + 1)), [media]);
   useEffect(() => {
     let alive = true, lease;
     setState({key, url: null, error: false});
@@ -17,10 +19,10 @@ function useAsset(exercise, kind, enabled, attempt = 0) {
     media.acquire(exercise.id, kind).then(value => {
       if (!alive) { value?.release(); return; }
       lease = value;
-      setState({key, url: value?.url || null, bytes: value?.bytes || null, error: !value});
+      setState({key, url: value?.url || null, bytes: value?.bytes || null, error: false, missing: !value});
     }, () => { if (alive) setState({key, url: null, error: true}); });
     return () => { alive = false; lease?.release(); };
-  }, [media, exercise?.id, kind, enabled, attempt]);
+  }, [media, exercise?.id, kind, enabled, attempt, generation]);
   return state.key === key && enabled ? state : {url: null, error: false};
 }
 
@@ -49,7 +51,7 @@ function OriginalClip({bytes, name, poster, onError}) {
 }
 
 export function ExerciseAnimation({exercise, minimizable = false}) {
-  const {store, run, media} = useGym();
+  const {store, run, media, showMediaSetup} = useGym();
   const [playing, setPlaying] = useState(true), [failed, setFailed] = useState(false), [attempt, setAttempt] = useState(0);
   const ref = useRef(null), [visible, setVisible] = useState(true);
   const size = minimizable ? store.setting('mediaSize', 'full') : 'full';
@@ -62,9 +64,10 @@ export function ExerciseAnimation({exercise, minimizable = false}) {
     if (!ref.current || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(entries => setVisible(entries[0].isIntersecting), {rootMargin: '100px'});
     observer.observe(ref.current); return () => observer.disconnect();
-  }, [enabled, exercise?.id]);
+  }, [enabled, exercise?.id, still.missing]);
   const onError = useCallback(error => setFailed(error?.code === 'UNSUPPORTED' ? 'unsupported' : true), []);
   if (!enabled || !media || !exercise || exercise.id?.startsWith('custom-')) return null;
+  if (still.missing) return <div className="media-unprepared"><Icon name="workout" size={30}/><p>准备素材后显示动作图示与演示</p><button type="button" className="button secondary" onClick={showMediaSetup}>准备图片与动画</button></div>;
   const retry = () => { setFailed(false); setAttempt(n => n + 1); setPlaying(true); };
   const onTap = () => (failed || clip.error) ? retry() : setPlaying(value => !value);
   const mini = size === 'mini';
