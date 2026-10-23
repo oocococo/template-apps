@@ -111,3 +111,10 @@ test('a failed source request stops the remaining download queue before reportin
   }), /source unavailable/);
   await new Promise(resolve => setTimeout(resolve, 15)); assert.ok(requests <= 6);
 });
+
+test('a finished preparation remains complete when its progress is reopened', async () => {
+  const f = await fixture(), first = new MediaPreparation(f.files, f.config); await first.run({accepted: true});
+  const reopened = new MediaPreparation(f.files, f.config);
+  assert.equal(reopened.snapshot().status, 'done'); assert.equal(reopened.snapshot().assets, 4);
+  assert.equal(f.puts.length, 5); assert.equal(reopened.snapshot().pending, false);
+});

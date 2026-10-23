@@ -71,7 +71,7 @@ export class MediaPreparation {
     }
     this.state.assets = index.packs.reduce((n, pack, id) => n + (this.journal.completed[pack.path]?.sha256 === pack.sha256 ? packEntries(index, id).length : 0), 0);
     this.state.pending = !!this.journal.pending;
-    if (saved) this.state.status = 'paused';
+    if (saved) this.state.status = this.journal.complete ? 'done' : 'paused';
   }
   subscribe = listener => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
   snapshot = () => this.state;
@@ -194,6 +194,7 @@ export class MediaPreparation {
         }
         completedAssets += target.assets; this.emit({assets: completedAssets, pending: !!this.journal.pending});
       }
+      this.journal.complete = true; this.save();
       this.emit({status: 'done', phase: '', assets: this.state.total, pausing: false}); this.onReady();
     } catch (error) {
       this.emit({status: 'error', pausing: false, pending: !!this.journal.pending,
