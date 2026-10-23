@@ -13,7 +13,7 @@ export function previewJSON(text,existing) {
 function csvDate(value) {const t=value.trim();if(validDate(t.slice(0,10)))return t.slice(0,10);const m=t.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})/);if(m){const d=`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;if(validDate(d))return d;}const d=new Date(t);if(!Number.isFinite(d.getTime()))return '';return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 export function previewCSV(text,catalogue,existing) {
   const rows=parseCSV(text.replace(/^\uFEFF/,''));if(rows.length<2)throw new Error('CSV 中没有训练记录');if(rows.length>50000)throw new Error('每次最多导入 50000 行');
-  const headers=rows.shift().map(s=>s.trim().toLowerCase().replace(/[_()]/g,' ').replace(/\s+/g,' '));
+  const headers=rows.shift().map(s=>s.trim().toLowerCase().replace(/[_()]/g,' ').replace(/\s+/g,' ').trim());
   const find=(...names)=>headers.findIndex(h=>names.includes(h));
   const dateAt=find('date','start time','日期'),nameAt=find('exercise name','exercise','exercise title','动作'),weightAt=find('weight','weight kg','weight lb','重量'),repsAt=find('reps','repetitions','次数'),titleAt=find('workout name','title','routine','训练'),secondsAt=(find('seconds','duration seconds')>=0?find('seconds','duration seconds'):find('duration')),typeAt=find('set type','set order','set');
   if(dateAt<0||nameAt<0||(repsAt<0&&secondsAt<0))throw new Error('未识别训练 CSV，需要日期、动作名称和次数或时长列');
