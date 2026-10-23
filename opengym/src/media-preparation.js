@@ -34,14 +34,17 @@ export function validatePreparationIndex(index) {
 
 export async function createOriginalPack(index, packId, loadAsset, concurrency = 6) {
   const entries = packEntries(index, packId), data = new Array(entries.length);
-  let next = 0;
+  let next = 0, failure;
   await Promise.all(Array.from({length: Math.min(concurrency, entries.length)}, async () => {
-    while (next < entries.length) {
+    while (!failure && next < entries.length) {
       const at = next++, entry = entries[at];
-      data[at] = new Uint8Array(await loadAsset(entry, index.packs[packId].kind));
-      if (data[at].byteLength !== entry.size) throw fail('SOURCE_INCOMPLETE', '下载的素材不完整，已完成进度会保留');
+      try {
+        data[at] = new Uint8Array(await loadAsset(entry, index.packs[packId].kind));
+        if (data[at].byteLength !== entry.size) throw fail('SOURCE_INCOMPLETE', '下载的素材不完整，已完成进度会保留');
+      } catch (error) { failure ||= error; }
     }
   }));
+  if (failure) throw failure;
   const files = {};
   entries.forEach((entry, i) => { files[entry.name] = [data[i], {level: 0, mtime: new Date(2026, 9, 1), os: 3, attrs: 0o600 << 16}]; });
   const bytes = zipSync(files), expected = index.packs[packId];
@@ -194,7 +197,7 @@ export class MediaPreparation {
       this.emit({status: 'done', phase: '', assets: this.state.total, pausing: false}); this.onReady();
     } catch (error) {
       this.emit({status: 'error', pausing: false, pending: !!this.journal.pending,
-        error: error.mediaPreparation ? error.message : error.status === 403 ? '暂时无法保存素材，请检查账号权限和剩余空间；已完成进度保留' : '准备暂未完成，已保留进度和上传回执，可核对后继续'});
+        error: error.mediaPreparation ? error.message : error.status === 403 ? '暂时无法保存素材，请检查账号权限和剩余空间；已完成进度保留' : '准备暂未完成，已保存的进度会保留；检查网络和空间后可继续'});
       throw error;
     }
   }

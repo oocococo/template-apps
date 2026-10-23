@@ -101,3 +101,13 @@ test('initialization cannot write until the usage condition is explicitly accept
   const f = await fixture(), p = new MediaPreparation(f.files, f.config);
   await assert.rejects(p.run(), /个人非商业/); assert.equal(f.puts.length, 0); assert.equal(f.requests.length, 0);
 });
+
+test('a failed source request stops the remaining download queue before reporting failure', async () => {
+  const index = {packs: [{kind: 'still'}], items: Object.fromEntries(Array.from({length: 20}, (_, i) => [String(i + 1).padStart(4, '0'), [[0, 40 + i, 1], null]]))};
+  let requests = 0;
+  await assert.rejects(createOriginalPack(index, 0, async entry => {
+    requests++; if (entry.id === '0001') throw new Error('source unavailable');
+    await new Promise(resolve => setTimeout(resolve, 5)); return new Uint8Array(1);
+  }), /source unavailable/);
+  await new Promise(resolve => setTimeout(resolve, 15)); assert.ok(requests <= 6);
+});

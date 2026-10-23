@@ -10,9 +10,12 @@ export function createMediaPreparation(media) {
   return new MediaPreparation(media.files, {appId: window.tiana?.appId, index, manifestText,
     notices: {original: originalNotice, media: mediaNotice}, onReady: () => media.refresh(),
     async fetchAsset(entry, kind) {
-      const response = await fetch(`https://raw.githubusercontent.com/DuarteSantos8/openGym/${ORIGINAL_COMMIT}/catalogue/media/${kind}/${entry.name}`,
-        {credentials: 'omit', cache: 'force-cache', referrerPolicy: 'no-referrer'});
-      if (!response.ok) throw new Error('素材来源暂时无法读取');
-      return response.arrayBuffer();
+      const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 30000);
+      try {
+        const response = await fetch(`https://raw.githubusercontent.com/DuarteSantos8/openGym/${ORIGINAL_COMMIT}/catalogue/media/${kind}/${entry.name}`,
+          {credentials: 'omit', cache: 'force-cache', referrerPolicy: 'no-referrer', signal: controller.signal});
+        if (!response.ok) throw new Error('素材来源暂时无法读取');
+        return await response.arrayBuffer();
+      } finally { clearTimeout(timeout); }
     }});
 }
