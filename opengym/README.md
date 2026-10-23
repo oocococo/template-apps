@@ -12,6 +12,8 @@
 
 `scripts/media/prepare-original-media.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用固定原版提交及 Git 树核对原文件、尺寸和对应动作，并生成目录与完整声明；准备过程需 Python Pillow。`upload-original-media.mjs --root DATA_ROOT --web WEB_ID` 通过 Recode 工具包调用官方 Tiana CLI 上传，保存每次回执，最后上传完整目录。不确定的上传须先对账，不能自动重放。新安装须自行按许可准备自己的媒体目录；缺少素材时，训练记录功能仍可使用。
 
+`validate-original-clips.py --root DATA_ROOT --source UPSTREAM_SNAPSHOT` 用 ffprobe 检查全部视频的编码、像素格式、帧数、时长和尺寸。`preview-original-media.mjs --root DATA_ROOT --output PREVIEW_DIR` 生成使用实际页面组件、完整目录和原始文件的本地视觉预览；通过回环地址的静态 HTTP 服务打开。该预览使用可公开的合成数据和页面内存，不代表云端持久化验证。
+
 ## 安装和开发
 
 从市场安装时，默认保留源码；取消勾选则仅创建应用和数据库。也可由 Agent 执行 `tiana web init-template opengym --dir PROJECT --json` 下载完整工程。
