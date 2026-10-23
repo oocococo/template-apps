@@ -7,8 +7,8 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{background:#08351f;font-family:"Kaiti SC","STKaiti","KaiTi","楷体","Noto Serif SC",serif;color:var(--ink);display:flex;justify-content:center}
-#app{position:relative;width:min(100vw,1040px);height:100dvh;background:linear-gradient(165deg,var(--felt1),var(--felt2));overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 60px rgba(0,0,0,.5)}
+body{background:#08351f;font-family:"Kaiti SC","STKaiti","KaiTi","楷体","Noto Serif SC",serif;color:var(--ink);display:block}
+#app{margin-inline:auto;position:relative;width:min(100vw,1040px);height:100dvh;background:linear-gradient(165deg,var(--felt1),var(--felt2));overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 60px rgba(0,0,0,.5)}
 .screen{position:absolute;inset:0;display:none;flex-direction:column}
 .screen.active{display:flex}
 
