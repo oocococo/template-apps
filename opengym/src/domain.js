@@ -78,6 +78,8 @@ export function validateRecord(kind,value,id) {
     if(id==='unit')return ['kg','lb'].includes(v);
     if(id==='weekStart')return [0,1].includes(v);
     if(id==='schedule')return ['weekly','rotation'].includes(v);
+    if(id==='exerciseView')return ['list','cards'].includes(v);
+    if(id==='mediaSize')return ['full','mini','off'].includes(v);
     if(id==='goal')return v===null||(Number.isFinite(v)&&v>0&&v<=700);
     return id===undefined&&JSON.stringify(value).length<10000;
   }

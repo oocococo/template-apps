@@ -20,3 +20,14 @@ test('SQLite compare-and-swap preserves the first window and keeps a conflicting
 test('a committed write with a lost response is read back, never replayed',async()=>{const {execute}=await database();let mutations=0;const channel=async(sql,args)=>{const rows=await execute(sql,args);if(sql.startsWith('INSERT')){mutations++;throw new Error('response lost');}return rows;};const store=new GymStore(channel);await store.load();store.set('weight','one',{date:'2026-10-20',weight:70});assert.equal(await store.flush(),true);assert.equal(mutations,1);assert.equal(store.dirty.size,0);});
 test('an edit made during a slow save is saved as the next revision',async()=>{const {db,execute}=await database();let hold,entered;const gated=new Promise(r=>entered=r);let first=true;const store=new GymStore(async(sql,args)=>{if(first&&sql.startsWith('INSERT')){first=false;entered();await new Promise(r=>hold=r);}return execute(sql,args);});await store.load();store.set('weight','one',{date:'2026-10-20',weight:70});const saving=store.flush();await gated;store.set('weight','one',{date:'2026-10-20',weight:72});hold();assert.equal(await saving,true);const row=db.prepare('SELECT payload,revision FROM gym_records').get();assert.equal(JSON.parse(row.payload).weight,72);assert.equal(row.revision,2);});
 test('deletion is a tombstone and survives reload without appearing in export',async()=>{const {execute,db}=await database();const store=new GymStore(execute);await store.load();store.set('weight','one',{date:'2026-10-20',weight:70});await store.flush();store.remove('weight','one');await store.flush();const second=new GymStore(execute);await second.load();assert.equal(second.list('weight').length,0);assert.equal(second.export().records.length,0);assert.equal(db.prepare('SELECT deleted FROM gym_records').get().deleted,1);});
+
+test('exercise view and media size settings survive SQLite reload and backup validation',async()=>{
+  const {execute}=await database();const first=new GymStore(execute);await first.load();
+  first.setSetting('exerciseView','cards');first.setSetting('mediaSize','mini');assert.equal(await first.flush(),true);
+  const reopened=new GymStore(execute);await reopened.load();assert.equal(reopened.setting('exerciseView'),'cards');assert.equal(reopened.setting('mediaSize'),'mini');
+  const backup=previewJSON(JSON.stringify(reopened.export()),new Set());assert.equal(backup.issues.length,0);assert.equal(backup.records.length,2);
+  for(const value of ['full','mini','off'])assert.equal(validateRecord('setting',{value},'mediaSize'),true);
+  for(const value of ['list','cards'])assert.equal(validateRecord('setting',{value},'exerciseView'),true);
+  assert.equal(validateRecord('setting',{value:'arbitrary'},'mediaSize'),false);assert.equal(validateRecord('setting',{value:'arbitrary'},'exerciseView'),false);
+  assert.equal(validateRecord('setting',{value:'cards'},'unknownSetting'),false);
+});

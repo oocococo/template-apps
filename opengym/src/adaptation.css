@@ -67,3 +67,6 @@
 .animation-surface:disabled{opacity:1;cursor:default}
 
 .lib-hdr{flex-wrap:wrap;align-items:center;row-gap:0}.lib-hdr>div:first-child{display:contents}.lib-hdr h1{order:0;flex:1}.lib-hdr .heading-actions{order:2;margin-left:auto}.lib-hdr .sub{order:3;flex:1 0 100%;margin-top:4px}
+
+.exercise-tags{flex-direction:row;align-items:center}.instructions li{color:var(--label-2)}
+@media(min-width:1000px){.exercise-animation:not(.mini) .animation-surface>img,.exercise-animation:not(.mini) .animation-surface>video,.exercise-animation:not(.mini) .animation-placeholder{height:380px}}
