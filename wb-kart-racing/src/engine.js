@@ -2393,11 +2393,43 @@ function mountEngine(personal) {
     function $(id) {
       return doc.getElementById(id);
     }
+    var touchPointer = global.matchMedia("(pointer:coarse)");
+    var touchStartX = null, touchIdentifier = null;
+    function clearSteeringTouch() {
+      touchIdentifier = null;
+      touchStartX = null;
+      touchSteer = 0;
+      input.steer = 0;
+    }
+    function steeringContact(touches) {
+      if (touchIdentifier == null || !touches) return null;
+      for (var i = 0; i < touches.length; i++) {
+        if (touches[i].identifier === touchIdentifier) return touches[i];
+      }
+      return null;
+    }
+    function clearTouchInput() {
+      clearSteeringTouch();
+      touchDrift = false;
+      touchItem = false;
+      pendingItem = false;
+      input.steer = 0;
+      input.drift = false;
+      input.useItem = false;
+    }
+    function syncTouch() {
+      var visible = state === "racing" && !doc.hidden && touchPointer.matches && global.navigator.maxTouchPoints > 0
+        && ["menu", "result", "pause", "board"].every(function(id) { return $("screen-" + id).classList.contains("hidden"); });
+      $("touch").classList.toggle("hidden", !visible);
+      if (!visible) clearTouchInput();
+    }
     function show(id) {
       ["menu", "result", "pause", "board"].forEach(function(s) {
         var el = $("screen-" + s);
         if (el) el.classList.toggle("hidden", s !== id);
       });
+      if (id != null) clearTouchInput();
+      syncTouch();
     }
     function bar(label, v, text) {
       return '<div class="bar-row"><span class="bar-label">' + label + '</span><span class="bar-track"><i style="width:' + Math.round(Math.max(4, Math.min(100, v * 100))) + '%"></i></span><span class="bar-val">' + text + "</span></div>";
@@ -2458,6 +2490,7 @@ function mountEngine(personal) {
       $("btn-board").onclick = function() {
         audio.init();
         audio.sfx.ui();
+        show("board");
         if (KART.personal) KART.personal.openHistory();
       };
       $("btn-sound").onclick = function() {
@@ -2620,6 +2653,10 @@ function mountEngine(personal) {
       }
     }
     function bindInput() {
+      doc.addEventListener("touchcancel", clearTouchInput, { passive: true });
+      doc.addEventListener("visibilitychange", syncTouch);
+      global.addEventListener("blur", clearTouchInput);
+      touchPointer.addEventListener("change", syncTouch);
       doc.addEventListener("keydown", function(e) {
         if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].indexOf(e.code) >= 0) e.preventDefault();
         if (keys[e.code]) return;
@@ -2636,19 +2673,23 @@ function mountEngine(personal) {
       });
       var pad = $("touch-pad");
       if (pad) {
-        var sx = null;
         pad.addEventListener("touchstart", function(e) {
-          sx = e.touches[0].clientX;
+          if (touchIdentifier != null) return;
+          var contact = e.changedTouches && e.changedTouches[0] || e.targetTouches && e.targetTouches[0];
+          if (!contact) return;
+          touchIdentifier = contact.identifier;
+          touchStartX = contact.clientX;
           e.preventDefault();
         }, { passive: false });
         pad.addEventListener("touchmove", function(e) {
-          if (sx == null) return;
-          touchSteer = Math.max(-1, Math.min(1, (e.touches[0].clientX - sx) / 60));
+          if (touchStartX == null) return;
+          var contact = steeringContact(e.touches);
+          if (!contact) { clearSteeringTouch(); return; }
+          touchSteer = Math.max(-1, Math.min(1, (contact.clientX - touchStartX) / 60));
           e.preventDefault();
         }, { passive: false });
-        pad.addEventListener("touchend", function() {
-          sx = null;
-          touchSteer = 0;
+        pad.addEventListener("touchend", function(e) {
+          if (steeringContact(e.changedTouches) || !steeringContact(e.touches)) clearSteeringTouch();
         });
       }
       var db = $("btn-drift"), ib = $("btn-item");
