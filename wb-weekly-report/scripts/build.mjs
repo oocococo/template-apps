@@ -3,7 +3,7 @@ import {readFile,mkdir,writeFile,copyFile,rm} from 'node:fs/promises';
 const commit=process.argv[2]||process.env.SOURCE_COMMIT;
 if(!commit||!/^([a-f0-9]{40}|[a-f0-9]{64})$/.test(commit))throw Error('Supply the confirmed source commit');
 const source=JSON.parse(await readFile('source.json','utf8'));
-await rm('dist',{recursive:true,force:true});await mkdir('dist/assets',{recursive:true});
+await mkdir('dist/assets',{recursive:true});
 const contents=(await Promise.all(['app.js','core.js','runtime.js'].map(f=>readFile('src/'+f,'utf8')))).join('\n');
 await build({stdin:{contents,resolveDir:process.cwd()+'/src',loader:'js'},bundle:true,format:'esm',minify:true,target:'es2022',outfile:'dist/assets/app.js',loader:{'.css':'text','.html':'text'},define:{'process.env.NODE_ENV':JSON.stringify('production')}});
 await copyFile('public/icon.png','dist/icon.png');
