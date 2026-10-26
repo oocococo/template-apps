@@ -7,4 +7,4 @@ await mkdir('dist/assets',{recursive:true});
 const contents=(await Promise.all(['app.js','core.js','runtime.js'].map(f=>readFile('src/'+f,'utf8')))).join('\n');
 await build({stdin:{contents,resolveDir:process.cwd()+'/src',loader:'js'},bundle:true,format:'esm',minify:true,target:'es2022',outfile:'dist/assets/app.js',loader:{'.css':'text','.html':'text'},define:{'process.env.NODE_ENV':JSON.stringify('production')}});
 await copyFile('public/icon.png','dist/icon.png');
-console.log('TIANA_PROJECT_PARAMS='+JSON.stringify({...source,entry:'assets/app.js',source_commit:commit}));
+console.log('TIANA_PROJECT_PARAMS '+JSON.stringify({...source,entry:'assets/app.js',source_commit:commit}));
