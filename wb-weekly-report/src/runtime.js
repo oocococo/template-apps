@@ -45,6 +45,7 @@ document.addEventListener('keydown',e=>{if(saving||failed){e.preventDefault();e.
 const handlers={loadTemplate,confirmClear,copyMd,copyPlain,exportJson,importJson,openDrawer,closeDrawer,renderHistory,openWeek,delWeek,confirmYes,confirmNo,shiftWeek,goToday,addItem,delItem,editItem,saveEdit,move,dragStart,dropTo,toggleDone,render};
 Object.assign(window,handlers);
 function bindUI(){
+ for(const input of document.querySelectorAll('input[type=text]'))input.maxLength=(input.id.startsWith('n-')||input.id==='e-note')?10000:1000;
  for(const element of document.querySelectorAll('*'))for(const attr of [...element.attributes]){
   if(!['onclick','onkeydown','oninput','onchange','ondragstart','ondragover','ondrop'].includes(attr.name))continue;
   const action=attr.value;
