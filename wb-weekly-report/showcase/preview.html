@@ -96,6 +96,8 @@ footer .lock{color:var(--teal)}
 @media(max-width:640px){.drawer-toggle{top:auto;bottom:80px}.week-range{font-size:14px;min-width:auto}}
 
 .drawer{visibility:hidden}.drawer.open{visibility:visible}.af-row1 input{min-width:0;width:100%}.item-actions{flex:none} #cloudStatus{font-size:12px;color:var(--muted);text-align:center;margin-bottom:12px} body.busy #workspace{pointer-events:none;opacity:.7} .error-box{padding:20px;color:#991b1b} .drawer-mask{z-index:29} .drawer{z-index:30}
+
+body{overflow-x:hidden}
 </style><body>
 <header>
   <div class="header-row">
@@ -124,7 +126,7 @@ footer .lock{color:var(--teal)}
       <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJson(event)">
     </div>
 
-    <div id="cloudStatus" role="status">示例体验，数据仅保留在本页 · 点击模板可恢复示例</div><div class="stats-bar" id="statsBar"></div><div class="cards" id="cards"></div></main>
+    <div id="cloudStatus" role="status">示例体验，数据仅保留在本页</div><div class="stats-bar" id="statsBar"></div><div class="cards" id="cards"></div></main>
 </div>
 
 
@@ -206,7 +208,7 @@ function loadTemplate(name){
 function confirmClear(){askConfirm("确定清空示例/本周所有事项？",()=>{const d=weekData();SECTIONS.forEach(s=>d[s.key]=[]);save();render();toast("已清空")})}
 
 /* ---------- render ---------- */
-function render(){
+function renderView(){
   document.getElementById("weekRange").textContent=weekRangeText(baseDate);
   currentWeekKey=weekKeyOf(baseDate);
   const d=weekData();
@@ -282,7 +284,7 @@ function addItem(sec){
   weekData()[sec].push(it);saveCurrentWeek();render();
 }
 function delItem(sec,idx){askConfirm("确定删除该条事项？",()=>{weekData()[sec].splice(idx,1);saveCurrentWeek();render();toast("已删除")})}
-function editItem(sec,idx){
+function editView(sec,idx){
   const d=weekData();const it=d[sec][idx];
   const body=document.querySelector(`.card-body[data-sec="${sec}"]`);
   body.innerHTML=`<div class="item edit-form">
@@ -390,7 +392,7 @@ function importJson(e){
 /* ---------- history drawer ---------- */
 function openDrawer(){document.getElementById("drawer").classList.add("open");renderHistory()}
 function closeDrawer(){document.getElementById("drawer").classList.remove("open")}
-function renderHistory(){
+function renderHistoryView(){
   const q=(document.getElementById("histSearch")?.value||"").trim().toLowerCase();
   const keys=Object.keys(store.weeks).filter(k=>store.weeks[k]).sort().reverse();
   const list=keys.map(k=>{
@@ -444,9 +446,14 @@ function validateBackup(data){
 }
 function startUI(){currentWeekKey=weekKeyOf(new Date());if(!Object.keys(store.weeks).length)loadTemplate("dev");else render()}
 
+function render(){renderView();bindUI()}
+function editItem(sec,idx){editView(sec,idx);bindUI()}
+function renderHistory(){renderHistoryView();bindUI()}
+
+function bindUI(){}
 function persistStore(){}
-function exportJson(){toast("示例体验不提供下载，安装后可导出备份")}
+function exportJson(){toast('示例体验不提供下载，安装后可导出备份')}
 function copyText(text,label){const box=document.createElement('textarea');box.value=text;box.setAttribute('aria-label',label);box.style.cssText='position:fixed;inset:15%;width:70%;height:60%;z-index:120';document.body.append(box);box.select();box.onkeydown=e=>{if(e.key==='Escape')box.remove()};box.onblur=()=>box.remove();toast('请选择文本复制，完成后点击其他位置')}
-function resetDemo(){store={weeks:{}};baseDate=curBase();currentWeekKey=weekKeyOf(baseDate);loadTemplate('dev');closeDrawer()}
-resetDemo();
+function resetDemo(){store={weeks:{}};baseDate=curBase();currentWeekKey=weekKeyOf(baseDate);document.querySelector('#histSearch').value='';loadTemplate('dev');closeDrawer()}
+resetDemo();document.querySelector('#toast').classList.remove('show');
 </script></body></html>

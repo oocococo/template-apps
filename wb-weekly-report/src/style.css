@@ -96,3 +96,5 @@ footer .lock{color:var(--teal)}
 @media(max-width:640px){.drawer-toggle{top:auto;bottom:80px}.week-range{font-size:14px;min-width:auto}}
 
 .drawer{visibility:hidden}.drawer.open{visibility:visible}.af-row1 input{min-width:0;width:100%}.item-actions{flex:none} #cloudStatus{font-size:12px;color:var(--muted);text-align:center;margin-bottom:12px} body.busy #workspace{pointer-events:none;opacity:.7} .error-box{padding:20px;color:#991b1b} .drawer-mask{z-index:29} .drawer{z-index:30}
+
+body{overflow-x:hidden}
