@@ -54,7 +54,7 @@ function loadTemplate(name){
 function confirmClear(){askConfirm("确定清空示例/本周所有事项？",()=>{const d=weekData();SECTIONS.forEach(s=>d[s.key]=[]);save();render();toast("已清空")})}
 
 /* ---------- render ---------- */
-function render(){
+function renderView(){
   document.getElementById("weekRange").textContent=weekRangeText(baseDate);
   currentWeekKey=weekKeyOf(baseDate);
   const d=weekData();
@@ -130,7 +130,7 @@ function addItem(sec){
   weekData()[sec].push(it);saveCurrentWeek();render();
 }
 function delItem(sec,idx){askConfirm("确定删除该条事项？",()=>{weekData()[sec].splice(idx,1);saveCurrentWeek();render();toast("已删除")})}
-function editItem(sec,idx){
+function editView(sec,idx){
   const d=weekData();const it=d[sec][idx];
   const body=document.querySelector(`.card-body[data-sec="${sec}"]`);
   body.innerHTML=`<div class="item edit-form">
@@ -238,7 +238,7 @@ function importJson(e){
 /* ---------- history drawer ---------- */
 function openDrawer(){document.getElementById("drawer").classList.add("open");renderHistory()}
 function closeDrawer(){document.getElementById("drawer").classList.remove("open")}
-function renderHistory(){
+function renderHistoryView(){
   const q=(document.getElementById("histSearch")?.value||"").trim().toLowerCase();
   const keys=Object.keys(store.weeks).filter(k=>store.weeks[k]).sort().reverse();
   const list=keys.map(k=>{
@@ -291,3 +291,7 @@ function validateBackup(data){
  }
 }
 function startUI(){currentWeekKey=weekKeyOf(new Date());if(!Object.keys(store.weeks).length)loadTemplate("dev");else render()}
+
+function render(){renderView();bindUI()}
+function editItem(sec,idx){editView(sec,idx);bindUI()}
+function renderHistory(){renderHistoryView();bindUI()}

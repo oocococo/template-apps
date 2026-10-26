@@ -44,4 +44,21 @@ document.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if(saving||failed){e.preventDefault();e.stopImmediatePropagation()}},true);
 const handlers={loadTemplate,confirmClear,copyMd,copyPlain,exportJson,importJson,openDrawer,closeDrawer,renderHistory,openWeek,delWeek,confirmYes,confirmNo,shiftWeek,goToday,addItem,delItem,editItem,saveEdit,move,dragStart,dropTo,toggleDone,render};
 Object.assign(window,handlers);
+function bindUI(){
+ for(const element of document.querySelectorAll('*'))for(const attr of [...element.attributes]){
+  if(!['onclick','onkeydown','oninput','onchange','ondragstart','ondragover','ondrop'].includes(attr.name))continue;
+  const action=attr.value;
+  element[attr.name]=event=>{
+   let command=action;
+   if(command.startsWith("if(event.key==='Enter')")){if(event.key!=='Enter')return;command=command.slice(23)}
+   if(command.startsWith('event.stopPropagation();')){event.stopPropagation();command=command.slice(24)}
+   if(command==='event.preventDefault()'){event.preventDefault();return}
+   if(command==="document.getElementById('importFile').click()"){document.querySelector('#importFile').click();return}
+   const match=/^(\w+)\((.*)\)$/.exec(command);if(!match||!handlers[match[1]])return;
+   const args=match[2]?match[2].split(',').map(x=>{x=x.trim();if(x==='event')return event;if(x==='this')return element;if(/^'.*'$/.test(x))return x.slice(1,-1);if(/^-?\d+$/.test(x))return Number(x);throw Error('Invalid UI action')}):[];
+   return handlers[match[1]](...args);
+  };
+ }
+}
+bindUI();
 connect().catch(e=>showFailure(e.message));
