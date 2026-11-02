@@ -9,6 +9,17 @@ beforeEach(() => {
 });
 afterEach(() => { fixture.close(); vi.unstubAllGlobals(); });
 describe('schema and framed Hrana transactions',() => {
+  it('saves multiple unknown-ended periods and preserves known interval constraints',async () => {
+    const {transaction,finalRelations} = await import('../../src/db');
+    const {insertPeriod,readBackup,upsertDay} = await import('../../src/repository');
+    const facts = history([28,28]);
+    facts.periods.forEach(p => { p.endDate = null; p.endUnknown = true; });
+    await transaction(facts.periods.map(insertPeriod),true);
+    expect((await readBackup()).periods.map(p => p.endUnknown)).toEqual([true,true,true]);
+    await expect(transaction([insertPeriod({...facts.periods[0],id:'overlap',startDate:'2025-01-02',endDate:'2025-02-01',endUnknown:false})],true)).rejects.toThrow();
+    await transaction([upsertDay(daily('2025-01-02',{bleedingType:'SPOTTING'})),finalRelations],true);
+    await expect(transaction([{sql:'UPDATE zhiji_periods SET end_date=? WHERE id=?',args:['2025-01-05',facts.periods[0].id]}],true)).rejects.toThrow();
+  });
   it('rejects overlapping inserts and updates, second open intervals, invalid enums, and mutable snapshots',async () => {
     const { transaction } = await import('../../src/db'); const { insertPeriod,insertSnapshot } = await import('../../src/repository');
     const periods = history([28]).periods;

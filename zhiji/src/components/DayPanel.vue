@@ -37,7 +37,7 @@ watch(() => state.editorDate, async date => {
     if (state.editorDate !== date) return;
     draft.value = clone(state.days[date] ?? emptyDay(date));
     const current = coveringPeriod(date,state.facts.periods), now = new Date().toISOString();
-    period.value = clone(state.editorMode === 'range' && state.editorRange ? { id: crypto.randomUUID(),startDate: state.editorRange.start,endDate: state.editorRange.end,gapBefore: false,note: null,source: 'USER',createdAt: now,updatedAt: now } : current ?? { id: crypto.randomUUID(),startDate: date,endDate: null,gapBefore: false,note: null,source: 'USER',createdAt: now,updatedAt: now });
+    period.value = clone(state.editorMode === 'range' && state.editorRange ? { id: crypto.randomUUID(),startDate: state.editorRange.start,endDate: state.editorRange.end,endUnknown: false,gapBefore: false,note: null,source: 'USER',createdAt: now,updatedAt: now } : current ?? { id: crypto.randomUUID(),startDate: date,endDate: null,endUnknown: false,gapBefore: false,note: null,source: 'USER',createdAt: now,updatedAt: now });
     tab.value = state.editorMode === 'daily' ? 'daily' : 'period';
     if (state.editorMode === 'end' && current && !current.endDate) period.value!.endDate = date;
     await nextTick(); state.draftDirty = false;
