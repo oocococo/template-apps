@@ -21,5 +21,6 @@
     }
   ],
   "schema": "schema.sql",
-  "seeds": "seed.sql"
+  "seeds": "seed.sql",
+  "database_required": true
 }
