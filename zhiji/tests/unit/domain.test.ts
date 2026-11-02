@@ -5,7 +5,7 @@ import { estimateDuration, predict } from '../../src/domain/prediction';
 import { cycleMass, cycleSurvivalAfter, tailBoundary } from '../../src/domain/probability';
 import { estimateFertility, fertileMass, lutealWeights, ovulationMass, ovulationTail, ovulationValidMass } from '../../src/domain/fertility';
 import { estimatePhase } from '../../src/domain/phase';
-import { emptyDay, parseDaily, relationIssues, validateFacts } from '../../src/domain/records';
+import { coveringPeriod, emptyDay, parseDaily, parsePeriod, relationIssues, validateFacts } from '../../src/domain/records';
 import { createSnapshot, evaluateSnapshots, meanAbsoluteError } from '../../src/domain/evaluation';
 import { buildObservations, cycleBodyStatistics, dailyStatistics } from '../../src/domain/statistics';
 import { chooseKnowledge } from '../../src/domain/knowledge';
@@ -34,6 +34,23 @@ describe('calendar facts',() => {
       discharge: { present: false,amount: null,colors: null,textures: null,odor: null,itching: null,burning: null } }),'2026-10-13');
     expect(log.painScore).toBe(0); expect(log.bowelEvents).toEqual([]); expect(log.moods).toBeNull();
     expect(() => parseDaily({ ...log,painScore: 1.5 },'2026-10-13')).toThrow();
+  });
+  it('retains start-only history without inventing duration or extending bleeding',() => {
+    const facts = history([28,27,29,28]);
+    facts.periods.forEach(p => { p.endDate = null; p.endUnknown = true; });
+    expect(() => validateFacts(facts,'2026-10-13')).not.toThrow();
+    expect(predict(facts).sampleCount).toBe(4);
+    expect(estimateDuration(facts.periods,predict(facts))).toBeNull();
+    expect(coveringPeriod(facts.periods[0].startDate,facts.periods)?.id).toBe(facts.periods[0].id);
+    expect(coveringPeriod(addDays(facts.periods[0].startDate,1),facts.periods)).toBeUndefined();
+    const anchor = facts.periods.at(-1)!;
+    expect(estimatePhase(addDays(anchor.startDate,1),facts,predict(facts),null,null).phase).toBe('UNKNOWN');
+    const backup: Backup = { format: 'zhiji',formatVersion: 1,exportedAt: '2026-10-13T00:00:00Z',periods: facts.periods,dailyLogs: [],absenceConfirmations: [] };
+    expect(parseBackup(JSON.stringify(backup),'2026-10-13').backup.periods).toEqual(facts.periods);
+    expect(csvFiles(backup)[0].content).toContain('"endUnknown"');
+    expect(() => parsePeriod({...anchor,endDate: anchor.startDate},'2026-10-13')).toThrow('清空');
+    const old = {...anchor}; delete (old as Partial<typeof old>).endUnknown;
+    expect(parsePeriod(old,'2026-10-13').endUnknown).toBe(false);
   });
   it('requires classification and neighboring-gap decisions after period changes',() => {
     const f = history([28,28]), after = structuredClone(f);

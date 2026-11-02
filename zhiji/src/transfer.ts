@@ -115,7 +115,7 @@ export function csvFiles(backup: Backup): { name: string; content: string }[] {
     return { name,content: '\uFEFF' + [columns.map(csvCell).join(','),...rows.map(r => columns.map(c => csvCell(r[c])).join(','))].join('\r\n') + '\r\n' };
   }
   const columns = ['date','bleedingType','flowLevel','bloodColors','painScore','painLocations','symptoms','moods','sleepHours','sleepQuality','bowelRecorded','bowelCount','intimacyRecorded','intimacyCount','discharge','note'];
-  return [file('zhiji-periods.csv',['id','startDate','endDate','gapBefore','note'],backup.periods),
+  return [file('zhiji-periods.csv',['id','startDate','endDate','endUnknown','gapBefore','note'],backup.periods),
     file('zhiji-daily.csv',columns,backup.dailyLogs.map(d => ({ ...d,bowelRecorded: d.bowelEvents !== null,bowelCount: d.bowelEvents?.length ?? null,
       intimacyRecorded: d.intimacyEvents !== null,intimacyCount: d.intimacyEvents?.length ?? null }))),
     file('zhiji-bowel.csv',['date','id','bristolType','straining','pain','note'],backup.dailyLogs.flatMap(d => (d.bowelEvents ?? []).map(e => ({ date: d.date,...e })))),

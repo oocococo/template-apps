@@ -1,7 +1,7 @@
 export type LocalDate = string;
 export type Timestamp = string;
 export type Period = {
-  id: string; startDate: LocalDate; endDate: LocalDate | null; gapBefore: boolean;
+  id: string; startDate: LocalDate; endDate: LocalDate | null; endUnknown: boolean; gapBefore: boolean;
   note: string | null; source: 'USER' | 'IMPORT'; createdAt: Timestamp; updatedAt: Timestamp;
 };
 export type BowelEvent = {
@@ -71,7 +71,7 @@ export type KnowledgeCard = {
   phases: PhaseResult['phase'][]; suggestions: string[]; careNotices: string[];
   sources: { title: string; url: string }[]; reviewedAt: LocalDate;
 };
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';
 export const ALGORITHM_VERSION = '1.0.0';
 export const labels: Record<string, string> = {
   NONE: '无', MENSTRUATION: '月经', SPOTTING: '点滴出血', UNKNOWN: '不确定', LIGHT: '少', MEDIUM: '中', HEAVY: '多',

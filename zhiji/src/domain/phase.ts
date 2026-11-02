@@ -11,7 +11,7 @@ export function estimatePhase(date: string, facts: Facts, p: Prediction, duratio
   if (!anchor.endDate) {
     if (date === anchor.startDate || daily?.bleedingType === 'MENSTRUATION')
       return { phase: 'MENSTRUAL', source: 'RECORDED', cycleDay: day, expectedBoundary: duration?.currentEnd ?? null, reason: '结束日期尚未填写' };
-    return unknown(duration?.currentEnd && date > duration.currentEnd ? '预计结束日已过，请补充实际结束日期。' : '结束日期尚未填写，今天的出血情况还需要记录。');
+    return unknown(anchor.endUnknown ? '这次经期的结束日期未知，今天的出血情况还需要记录。' : duration?.currentEnd && date > duration.currentEnd ? '预计结束日已过，请补充实际结束日期。' : '结束日期尚未填写，今天的出血情况还需要记录。');
   }
   if (facts.bleeding.some(b => b.date > anchor.startDate && b.date <= date && b.bleedingType === 'UNKNOWN')) return unknown('有尚未明确性质的出血，请先核实记录。');
   if (p.conditionUnavailable) return unknown('已确认尚未来经，数据不足，暂不能更新日期估计。');
