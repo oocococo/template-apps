@@ -1,13 +1,11 @@
-# 学习计划
+# 心屿 · 学习计划
 
-适合学习计划和专注管理应用，包含学习内容、进度与专注记录。
+个人专注与建岛应用，按标签和标题记录一轮投入。支持暂停继续、刷新恢复、终止确认、建筑详情、金币解锁、首页本周足迹和七天复盘。默认空库，不包含任务清单。完整流程和边界见 docs/product.md。
 
-本目录是完整可编辑源码工程。新应用默认由 Agent 创建所需的 SQLite 和 Git 实例并等待就绪；用户明确指定已有实例时核实后复用。实例名称由 Agent 根据当前应用命名，绑定使用 CLI 实际返回的实例 ID。
+## 安装与发布
 
-Agent 按 metadata.json 的 variables，将 source.json 中 SQLITE_INSTANCE_ID、GIT_INSTANCE_ID 对应的随机占位符替换为本次实际 ID；所有出现文件都在 files 中列明。按文件语法写入值并核对 JSON。
+使用 tiana web init-template study --dir <新目录> 下载。读取 metadata.json，创建本次应用的 SQLite 与 Git 实例，用真实回执替换 source.json 中声明的两个占位符，执行 schema.sql。连接通过运行时 window.tiana.connection() 与动态 auth provider 取得，不写入凭据。
 
-随后使用 source.json 的 database_instance_id 对应 SQLite 执行 schema；存在 seeds 时在 schema 之后执行。未配置或文件不存在的项跳过。SQL 失败时先处理结果，再继续交付。
+执行 npm ci 安装锁定依赖。按公开 Tiana Git 流程提交完整源码并推送，确认干净工作树和远端提交，再执行 node scripts/build.mjs <完整源码提交号>。构建输出 TIANA_PROJECT_PARAMS，按实际 entry、SQLite、Git 和源码提交创建或配置 Web 项目。使用 tiana web serve 预览并用 tiana web publish 发布 dist。源码静态资源 public/icon.png 会输出到 dist/icon.png，安装继承此图标。
 
-执行 npm ci 安装锁定依赖。按公开 tiana-web／tiana-git 技能流程提交完整源码、推送并核验远端引用，取得客户源码的完整 commit，再执行 node scripts/build.mjs <客户源码commit>。构建输出 TIANA_PROJECT_PARAMS 中的 entry、database_instance_id、git_instance_id、source_commit 配置到 MGR Web 项目，其中 SQLite ID 与执行 schema/seeds 的实例一致。输出 dist/ 通过 tiana web serve 预览及 tiana web publish 发布。模板出处 commit 与客户源码 commit 分别记录。
-
-产品资料见 docs/；数据库结构见 schema.sql。作者先在独立目录用自己的实例调试，再将实例绑定参数化为模板。公开前检查源码、拟推送提交和实际 ZIP，移除秘密、真实客户数据及内部资料。
+执行 npm test 进行完成专注回归检查。预览 showcase/preview.html 可直接体验，数据只保留在本页。可自定义 src/main.js 中的 TAGS 和 BUILDINGS、src/markup.html 的文案、src/style.css 的样式。

@@ -56,10 +56,85 @@ schema.sql             # metadata.schema 存在时收录
 seed.sql               # metadata.seeds 存在时收录
 ```
 
-打包器从构建结果生成 site.tweb，沿用 Web 制品的 16 MiB 压缩／解压大小和 4096 个资源上限；如果构建输出 icon.png，MGR 同时提取它作为独立应用图标。install.json 由打包器生成，entry 来自本次构建，只从源码 variables 中收录实际 SQL 文件使用的 WEB_ID、SQLITE_INSTANCE_ID、APP_NAME；文件名映射到包内 schema.sql/seed.sql。
+打包器从构建结果生成 site.tweb，沿用 Web 制品的 16 MiB 压缩／解压大小和 4096 个资源上限；如果构建输出 icon.png，MGR 同时提取它作为独立应用图标。install.json 由打包器生成，包含完整 metadata、明确的 database_required 和来自本次构建的 entry。database_required 在各模板 metadata.json 中声明，不通过 SQL 文件是否存在推断；纯前端填写 false。SQL 变量，只从源码 variables 中收录实际 SQL 文件使用的 WEB_ID、SQLITE_INSTANCE_ID、APP_NAME；文件名映射到包内 schema.sql/seed.sql。
 
 上传时只交付 install.zip。MGR 解包保存 source.zip、site.tweb、独立 preview.html、cover.webp、install.json 和提供的 SQL／图标；prompt 入目录数据库。外层 install.zip 不作为运行时存储对象保留。灵光一闪直接读取独立 HTML，CLI 仍下载 source.zip。
 
 一键安装为用户创建 SQLite 和 Web，将数据库 ID 绑定到 Web 参数，然后依次尝试 schema 和 seed，最后由 OSS 复制同一 site.tweb 到 Web 存储。SQL 占位符只写在字符串字面量内，安装器转义替换值中的单引号。schema 优先 `CREATE TABLE IF NOT EXISTS`，seed 尽量使用稳定主键配合 `INSERT OR IGNORE` 等幂等写法。SQL 语句报错会记录后继续，制作时须自行执行、复查真实结果；传输或材料读取失败会使任务重试。
 
 发布前同时验证源码方式与一键安装方式。showcase 的示例数据不等同于真实初始数据，安装后的数据只由 schema、seed 及应用已实现的初始化逻辑决定。
+
+## 函数后端与共享仓库
+
+函数模板在 metadata.json 增加 `repositories`、`functions`、`web_repository`、`private_database` 和 `site_variables`；打包器将这些字段原样带入 install.json。源 ZIP 的根部保留 metadata/showcase/SQL，每个逻辑 Git 快照保存一次，例如 `repositories/app/`，其中可以同时包含前端、多个函数 ID 目录和公共 Go 包。
+
+```json
+{
+  "database_required": true,
+  "private_database": true,
+  "web_repository": "app",
+  "repositories": [{
+    "key": "app",
+    "path": "repositories/app",
+    "variables": [{"name":"FUNCTION_ID:api","placeholder":"__TIANA_FUNCTION_API_91ad47ef__","description":"安装后的订单函数","files":["src/app.js"]}]
+  }],
+  "functions": [{
+    "key": "api", "name": "订单接口", "repository": "app", "source_dir": "/services/orders",
+    "parameters": {"MESSAGE":"欢迎使用订单服务"},
+    "database": {"endpoint_parameter":"SQLITE_ENDPOINT","token_parameter":"SQLITE_TOKEN"}
+  }],
+  "site_variables": [{"name":"FUNCTION_ID:api","placeholder":"__TIANA_FUNCTION_API_91ad47ef__","description":"安装后的订单函数","files":["app.js"]}]
+}
+```
+
+上例与原 metadata 的名称、简介、schema/seeds 等字段一起使用。`npm run pack` 在 web_repository 对应子目录执行 npm ci/build 并读取其 dist。源 variables 的路径相对于对应仓库，site_variables 路径相对于前端 dist，必须填写本次构建实际文件名。占位符须以普通字符串保留在编译文件中；打包器检查声明位置。Function/Git 变量为 `FUNCTION_ID:<key>`、`GIT_INSTANCE_ID:<key>`，其余资源变量沿用 WEB_ID、SQLITE_INSTANCE_ID。每个变量使用独立的随机占位符。
+
+`source_dir` 填写服务元信息中保存的仓库内目录，支持 `/` 根目录；入口目录包含 package main 的 Go 文件，所属 go.mod 可位于入口目录或仓库内上级目录；多个入口可共享同一模块。安装保留仓库目录结构，为新服务 ID 关联同一个 source_dir，不改名源码目录。同仓同目录允许多个服务引用。源码 variables 的文件路径相对于原仓库，资源 ID 引用仍按声明替换；数据库 Token 只写入运行参数。
+
+`private_database: true` 让 SQLite 仅供函数后端使用，Web 不绑定该数据库。安装创建新实例 Token，只写入函数 database 声明的参数；parameters 只允许作者主动筛选的公开业务初值，不导出在线参数全表。函数可选 cors 使用当前函数 CORS 对象。前端经 `context.functions.fetch` 调用新函数，安装器更新 Web 现有函数列表，并替换 site_variables 中的前端引用。
+
+函数源码始终包含在安装包中，安装时必需；用户不保留额外前端源码时，函数使用的 Git 仍保留，同仓前端仍关联它。不同仓库不能因为包含同名文件而合并。发布前应从另一租户实际安装、调用并验证新数据库数据及浏览器凭据隔离；保留一份共享 Git、映射新函数目录、失败重试复用已创建资源均需验收。
+
+## 可选素材文件（格式版本 2）
+
+需要素材的模板在 metadata.json 声明 `"file_seeds":"template-files"`，并将全部素材
+放入 `template-files/`。未声明时不允许夹带该目录；已声明时必须包含 1 至 256 个
+普通文件，累计不超过 16 MiB。拒绝软链接、特殊文件、文件与目录冲突、绝对路径、
+点路径、反斜线、控制字符和百分号编码路径。素材不参与变量替换。
+
+打包器从同一个确定提交读取源码与素材。source.zip 保留 `template-files/<path>`，
+install.zip 另含 `files/<path>`，两者字节完全相同。install.json 包含
+`format_version: 2`、`requires: ["template_files_v1"]` 和以下 files 对象：
+
+```json
+{"version":1,"root":"template-assets/","entries":[{"path":"images/cover.webp","size":24576,"sha256":"<实际字节的64位小写SHA-256>","content_type":"image/webp"}]}
+```
+
+entries 按路径 UTF-8 字节排序。打包回执的 file_manifest_sha256 对 install.json 中
+files 对象的原始 UTF-8 字节计算，不对重新序列化结果计算。回执还记录文件数和总字节。
+无素材包省略新版本、能力及 files 字段，继续原安装步骤。
+
+源码包和单项材料上限为 16 MiB，安装包上限 32 MiB，外层及嵌套归档累计解压不超过
+128 MiB、5,000 项。素材满足自身限制仍须通过整体归档限制。
+
+干净构建不得复制素材到 dist，也不得将素材重新内嵌到 JavaScript。打包器拒绝素材
+目录、相同文件字节及可识别的原始字节/base64 嵌入；任意变换后的素材仍需通过实际
+验收核对。静态小图片优化后、编码前不超过 16,384 字节时应实际内嵌到 JavaScript；
+其余按应用需求使用文件存储。市场预览保持自包含，不访问作者或安装用户的文件。
+平台要求的根部 `data/icon.png` 保留随包例外；相同素材改名放入其他 Web 路径仍会被拒绝。
+
+应用和数据库记录使用 `template-assets/<path>`，通过 context.files 的 get、getUrl、
+bindImage 访问。不得保存作者文件 URL、租户 ID 或文件访问 Token。安装响应取得 Web ID
+后，本地开发先用 `tiana file put` 上传到 `<web-id>/template-assets/<path>` 并检查回执，
+再预览。`tiana web init-template` 仍仅下载解压源码，不修改云端资源。
+
+发布前验证保留源码及直接安装两种模式的桌面和手机路径，保存任务、真实对象摘要、
+Git 初始内容、数据库相对路径及浏览器读取结果。检查刷新、重新打开、另一授权会话、
+跨租户拒绝与安装隔离。使用独立模板，不修改已验收的 Oncall 模板。
+
+新格式发布须等待服务端兼容版 C 已覆盖全部安装节点，以及完整功能、Gaia 续装和
+终止清理、同频异常扫描告警验收完成。此打包器实现本身不代表云端已支持新格式。
+
+## 组合后端与素材
+
+函数模板可以同时声明 `functions`/`repositories` 与 `file_seeds`。此时 install.json 同时保留上述后端字段（`private_database`、`web_repository`、`repositories`、`functions`、`site_variables`）以及 `format_version: 2`、`requires: ["template_files_v1"]` 和 `files` 对象；未声明素材的后端模板仍不写 `format_version`、`requires` 或 `files`。素材只从模板根 `template-files/` 读取，不放入 `repositories/<key>/` 子目录；16 MiB/32 MiB 等上限同时约束整个安装包。前端仍在 `web_repository` 内构建，构建结果不得复制素材或把素材重新嵌入 JavaScript，`site_variables` 占位符必须保留在编译产物中。
