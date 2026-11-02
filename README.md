@@ -1,6 +1,6 @@
 # Tiana Web 模板应用
 
-每个顶层模板目录都是完整、可编辑的应用源码工程：two-to-three、study、whiteboard、ledger、notes、calendar、team-building、neon-coast、sunlit-album、nes-loader、bedtime-talk。team-building 是团建聚餐应用，支持餐厅候选、投票、活动安排、评论与历史复制；使用要求见[应用说明](team-building/README.md)。前六个模板的原始工程来自 agent-skills 提交 `8da60f0` 中对应 `skills/tiana-*/assets/app/`，模板专属参考资料随工程迁入 docs/。
+每个顶层模板目录都是完整、可编辑的应用源码工程：two-to-three、study、whiteboard、ledger、notes、calendar、team-building、neon-coast、sunlit-album、nes-loader、cycle、bedtime-talk。team-building 是团建聚餐应用，支持餐厅候选、投票、活动安排、评论与历史复制；使用要求见[应用说明](team-building/README.md)。前六个模板的原始工程来自 agent-skills 提交 `8da60f0` 中对应 `skills/tiana-*/assets/app/`，模板专属参考资料随工程迁入 docs/。
 
 Tiana 自有代码统一采用 [Apache-2.0](LICENSE) 许可证；第三方代码与素材遵循各模板保留的许可及署名说明。
 
@@ -10,9 +10,13 @@ sunlit-album 是轻盈的照片相册，支持文件存储、自动缩略图、�
 
 nes-loader 是支持 ROM 文件上传、独立 SQLite 存档、卡带搜索与整理、键盘及手机摇杆的红白机模拟器，包含默认图标，不附带游戏 ROM；使用要求见[应用说明](nes-loader/README.md)。
 
+cycle（周期）用于管理需要定期做的日常事项，支持到期提醒、标签搜索、分钟级完成记录、备注照片、次数统计与归档恢复；使用要求见[应用说明](cycle/README.md)。
+
 客户 Agent 每次应用任务运行 `tiana web list-template --json`，根据 name／description 选择合适起点。`tiana web init-template <name> --dir <目录> --json` 下载 MGR 配置的私有 OSS 包并原样解压；Agent 根据根目录 metadata.json 替换变量、初始化数据库、定制应用并交付。模板的 MGR 版本由上传时自动分配，客户 CLI 按名称取得当前可用包。
 
 bedtime-talk 是家长与孩子轮流抽卡的睡前聊天应用，支持可编辑的问题库和不可修改、不可删除的历史回答；使用要求见[应用说明](bedtime-talk/README.md)。
+
+baby-growth 是面向新生儿家庭的「宝贝成长记」，提供宝宝档案、身高体重曲线和卫健委标准参考、辅食日历、家庭收支、每日事项、疫苗、乳牙萌出和成长里程碑；以手机为主，兼容桌面。使用要求见[应用说明](baby-growth/README.md)。
 
 ## 制作和维护
 
@@ -37,3 +41,19 @@ Gaia 将 ZIP 同步交给 MGR，30 秒超时，失败后人工重试。上传更
 ## 验证范围
 
 打包测试验证确定提交导出、元信息与所有占位符位置、ZIP 内容及确定性；应用测试使用 SQLite／HTTP 和浏览器夹具验证模板构建及日常应用业务。夹具成功不能代替真实 Tiana 实例、OSS、Gaia、CLI 和宿主 Agent 验收。
+
+
+bedtime-talk（睡前聊聊）提供亲子问题卡与对话记录；zhiji（知己）提供个人周期与身体感受记录。本次以各自已公开来源提交 `2a572775` 和 `d9eaac38` 收入统一材料构建。
+
+## 灵光一闪发布材料
+
+每个模板的 `showcase/` 提供独立 HTML 示例、WebP 封面和做同款提示词。先核对预览，再运行 `node scripts/render-showcase.mjs NAME` 更新截图；将源码和展示材料提交后，运行 `npm run pack -- NAME COMMIT` 生成 `.install.zip`。上传此包到 Gaia，编辑分组／标签／提示词后发布。包结构及一键安装说明见 [FORMAT.md](FORMAT.md#灵光一闪展示源码与可安装产物)。
+
+### 从实际应用生成可操作预览
+
+运行 `node scripts/build-live-showcase.mjs <模板名>`，先在 `dist/live-showcases/` 生成仅供本地提取界面的真实应用演示。再运行 `node scripts/build-light-showcase.mjs <模板名> ...`，从实际渲染页面提取结构、样式和选中的展示状态，生成可发布的轻量预览。页面内交互由 `scripts/light-showcase-runtime.js` 维护；大型游戏展示真实界面与操作指南，完整游戏通过安装体验。
+
+发布的 `showcase/preview.html` 压缩前不超过 500,000 字节，所有展示资源自包含；恢复示例直接重置页内状态。使用 `node scripts/check-live-showcases.mjs <模板名> ...` 在 Console 的 sandbox/CSP 下检查展示、选定流程、连续恢复及手机布局，并生成同份预览的封面。结果保存在 `dist/showcase-validation/`。完整应用的安装构建仍使用原应用源码；图标统一为 `public/icon.png`，256×256 PNG，构建根目录输出 `icon.png`。
+
+
+dayecho（日有回响 · 倒推计划）提供桌面三栏日历、任务池与手机周日期条，包含截止日项目、每日安全线、实际用时、随记、回响之书、统计及本地导出；安装与使用见[应用说明](dayecho/README.md)。

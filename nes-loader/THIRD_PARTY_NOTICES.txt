@@ -10,7 +10,7 @@ The JSNES source is provided by the pinned npm dependency; see its LICENSE.
 The application adds its own Mapper 25 implementation and CPU cycle hook,
 based on the VRC4 and VRC IRQ hardware descriptions at nesdev.org.
 
-@tianacloud/serverless 0.1.0-beta.2 — https://www.npmjs.com/package/@tianacloud/serverless
+@tianacloud/serverless 0.1.0 — https://www.npmjs.com/package/@tianacloud/serverless
 Licensed under Apache-2.0. See the dependency package for its license.
 
 No game ROMs or game artwork are distributed with this template.
