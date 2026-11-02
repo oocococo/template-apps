@@ -20,5 +20,6 @@
       ]
     }
   ],
-  "schema": "schema.sql"
+  "schema": "schema.sql",
+  "database_required": true
 }

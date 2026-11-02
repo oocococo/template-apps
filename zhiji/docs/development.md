@@ -24,7 +24,7 @@ Tiana DB：个人事实、预测快照、核实结果、偏好
 | 构建 | Vite | 输出固定 ES 模块入口，沿用仓库模板构建流程 |
 | 路由 | 小型哈希路由模块 | 四个主页面和知识详情，保持 URL 可刷新及浏览器返回 |
 | 状态 | Vue 响应式对象与页面草稿 | 应用规模可直接维护事实缓存、查询状态和编辑状态 |
-| 数据连接 | `@tianacloud/serverless@0.1.0-beta.2` | 使用运行时账号鉴权，通过 Hrana v3 参数化 SQL 读写 |
+| 数据连接 | `@tianacloud/serverless@0.1.0` | 使用运行时账号鉴权，通过 Hrana v3 参数化 SQL 读写 |
 | t 分布 | `@stdlib/stats-base-dists-t-cdf@0.2.3` | CDF 和通过对称性计算的稳定尾部概率 |
 | 正态分布 | `@stdlib/stats-base-dists-normal-cdf@0.3.1` | 黄体期离散分布 |
 | 图表 | SVG + Vue | 周期折线、等级分布及少量趋势图，便于做文字替代和点击定位 |

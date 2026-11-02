@@ -9,7 +9,7 @@
     "test:browser": "node tests/browser.mjs"
   },
   "dependencies": {
-    "@tianacloud/serverless": "0.1.0-beta.2",
+    "@tianacloud/serverless": "0.1.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "lucide-react": "0.468.0"
